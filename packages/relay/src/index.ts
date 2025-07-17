@@ -67,7 +67,7 @@ class MCPRelay {
       } catch (cacheErr) {
         console.error(`Failed to cache tools response: ${(cacheErr as Error).message}`);
       }
-    }, 30000); // every 30 seconds
+    }, 3600000); // every 3600 seconds (1 hour)
 
     this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async (request): Promise<ListToolsResult> => {
       const cachedTools = await this.getToolsCache() ?? initialTools;
