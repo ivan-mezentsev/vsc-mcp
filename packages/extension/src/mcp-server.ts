@@ -1,6 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
 import { CallToolRequestSchema, CallToolResult, ErrorCode, ListResourcesRequestSchema, ListToolsRequestSchema, ListToolsResult, McpError, ReadResourceRequestSchema, Tool } from '@modelcontextprotocol/sdk/types.js';
 import dedent from 'dedent';
 import * as vscode from 'vscode';
@@ -45,7 +44,7 @@ export class ToolRegistry {
     name: string,
     description: string,
     inputSchema: Tool['inputSchema'],
-    cb: (args: unknown, extra: RequestHandlerExtra) => ReturnType<ToolCallback<any>>,
+    cb: (args: unknown, extra: any) => ReturnType<ToolCallback<any>>,
   ) {
     if (this._registeredTools[name]) {
       throw new Error(`Tool ${name} is already registered`);
@@ -120,7 +119,7 @@ export class ToolRegistry {
         if (tool.inputSchema) {
           // Skip validation because raw inputschema tool is used by another tool provider
           const args = request.params.arguments;
-          const cb = tool.callback as (args: unknown, extra: RequestHandlerExtra) => ReturnType<ToolCallback<any>>;
+          const cb = tool.callback as (args: unknown, extra: any) => ReturnType<ToolCallback<any>>;
           return await Promise.resolve(cb(args, extra));
         } else if (tool.inputZodSchema) {
           const parseResult = await tool.inputZodSchema.safeParseAsync(
