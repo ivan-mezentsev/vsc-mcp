@@ -204,7 +204,54 @@ class MCPRelay {
       }
       // Otherwise, exclude tools in the disabled list
       return !this.disabledTools.has(tool.name);
-    });
+    }).map(tool => this.sanitizeToolSchema(tool));
+  }
+
+  private sanitizeToolSchema(tool: any): any {
+    if (!tool.inputSchema) {
+      return tool;
+    }
+
+    // Create a deep copy to avoid modifying the original
+    const sanitizedTool = JSON.parse(JSON.stringify(tool));
+    
+    // Recursively remove unsupported schema features
+    const sanitizeSchema = (schema: any): any => {
+      if (typeof schema !== 'object' || schema === null) {
+        return schema;
+      }
+
+      const sanitized = { ...schema };
+      
+      // Remove unsupported meta-schema features
+      delete sanitized.$dynamicRef;
+      delete sanitized.$dynamicAnchor;
+      delete sanitized.$recursiveRef;
+      delete sanitized.$recursiveAnchor;
+      
+      // Downgrade schema version to draft-07 which is more widely supported
+      if (sanitized.$schema && sanitized.$schema.includes('2020-12')) {
+        sanitized.$schema = 'http://json-schema.org/draft-07/schema#';
+      }
+      
+      // Recursively sanitize nested objects
+      Object.keys(sanitized).forEach(key => {
+        if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+          if (Array.isArray(sanitized[key])) {
+            sanitized[key] = sanitized[key].map((item: any) => 
+              typeof item === 'object' ? sanitizeSchema(item) : item
+            );
+          } else {
+            sanitized[key] = sanitizeSchema(sanitized[key]);
+          }
+        }
+      });
+      
+      return sanitized;
+    };
+
+    sanitizedTool.inputSchema = sanitizeSchema(sanitizedTool.inputSchema);
+    return sanitizedTool;
   }
 
   start() {
