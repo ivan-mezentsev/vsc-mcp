@@ -16,8 +16,10 @@ const RETRY_INTERVAL = 1000; // 1 second
 class MCPRelay {
   private mcpServer: McpServer;
   private disabledTools: Set<string>;
-  constructor(readonly serverUrl: string, disabledTools: string[] = []) {
+  private enabledTools: Set<string> | null;
+  constructor(readonly serverUrl: string, disabledTools: string[] = [], enabledTools: string[] = []) {
     this.disabledTools = new Set(disabledTools);
+    this.enabledTools = enabledTools.length > 0 ? new Set(enabledTools) : null;
     this.mcpServer = new McpServer({
       name: 'vscode-as-mcp',
       version: '0.0.1',
@@ -39,8 +41,8 @@ class MCPRelay {
         } as JSONRPCRequest));
         const parsedResponse = resp as JSONRPCResponse;
         tools = parsedResponse.result.tools as any[];
-        // Filter out disabled tools
-        tools = tools.filter(tool => !this.disabledTools.has(tool.name));
+        // Filter tools based on enabled/disabled lists
+        tools = this.filterTools(tools);
       } catch (err) {
         return;
       }
@@ -82,8 +84,8 @@ class MCPRelay {
         tools = parsedResponse.result.tools as any[];
       } catch (err) {
         console.error(`Failed to fetch tools list: ${(err as Error).message}`);
-        // Filter out disabled tools from cached tools
-        const filteredCachedTools = cachedTools.filter(tool => !this.disabledTools.has(tool.name));
+        // Filter cached tools based on enabled/disabled lists
+        const filteredCachedTools = this.filterTools(cachedTools);
         return { tools: filteredCachedTools as any[] };
       }
 
@@ -94,8 +96,8 @@ class MCPRelay {
         console.error(`Failed to cache tools response: ${(cacheErr as Error).message}`);
       }
 
-      // Filter out disabled tools
-      const filteredTools = tools.filter(tool => !this.disabledTools.has(tool.name));
+      // Filter tools based on enabled/disabled lists
+      const filteredTools = this.filterTools(tools);
       return { tools: filteredTools };
     });
 
@@ -194,6 +196,17 @@ class MCPRelay {
     throw new Error(`All retry attempts failed: ${lastError?.message}`);
   }
 
+  private filterTools(tools: any[]): any[] {
+    return tools.filter(tool => {
+      // If enabledTools is set, only include tools in the enabled list
+      if (this.enabledTools !== null) {
+        return this.enabledTools.has(tool.name);
+      }
+      // Otherwise, exclude tools in the disabled list
+      return !this.disabledTools.has(tool.name);
+    });
+  }
+
   start() {
     return this.mcpServer.connect(new StdioServerTransport());
   }
@@ -204,6 +217,7 @@ function parseArgs() {
   const args = process.argv.slice(2);
   let serverUrl = 'http://localhost:60100';
   const disabledTools: string[] = [];
+  const enabledTools: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--server-url' && i + 1 < args.length) {
@@ -212,15 +226,18 @@ function parseArgs() {
     } else if (args[i] === '--disable' && i + 1 < args.length) {
       disabledTools.push(args[i + 1]);
       i++;
+    } else if (args[i] === '--enable' && i + 1 < args.length) {
+      enabledTools.push(args[i + 1]);
+      i++;
     }
   }
 
-  return { serverUrl, disabledTools };
+  return { serverUrl, disabledTools, enabledTools };
 }
 
 try {
-  const { serverUrl, disabledTools } = parseArgs();
-  const relay = new MCPRelay(serverUrl, disabledTools);
+  const { serverUrl, disabledTools, enabledTools } = parseArgs();
+  const relay = new MCPRelay(serverUrl, disabledTools, enabledTools);
   await relay.start();
 } catch (err) {
   console.error(`Fatal error: ${(err as Error).message}`);
