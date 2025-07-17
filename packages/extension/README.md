@@ -72,6 +72,34 @@ This extension was developed to mitigate high costs associated with metered codi
 
 Bug reports and feedback are very welcome! 🙇
 
+## Local Build & Installation
+
+To build and install the extension and relay locally:
+
+### Build the Extension
+
+```bash
+cd packages/extension
+npx vsce package --no-dependencies --allow-missing-repository
+```
+
+Install the packaged extension from disk:
+
+```bash
+code --install-extension packages/extension/vscode-as-mcp-server-0.0.25.vsix
+```
+
+### Build and Link Relay
+
+```bash
+cd packages/relay
+npm run build
+npm pack
+npm link
+```
+
+After linking, running via `npx` will use your local relay version.
+
 ## Future Roadmap
 
 - Ability to select which built-in MCP servers to expose
