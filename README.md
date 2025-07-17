@@ -1,8 +1,42 @@
 # VSCode as MCP Server
 
-[Marketplace](https://marketplace.visualstudio.com/items?itemName=acomagu.vscode-as-mcp-server)
-
 A VSCode extension that turns your VSCode into an MCP server, enabling advanced coding assistance from MCP clients like Claude Desktop.
+
+## Local Build & Installation
+
+To build and install the extension and relay locally:
+
+### Build the Extension
+
+```bash
+cd packages/extension
+npx vsce package --no-dependencies --allow-missing-repository
+```
+
+Install the packaged extension from disk:
+
+```bash
+code --install-extension packages/extension/vscode-as-mcp-server-0.0.25.vsix
+```
+
+### Build and Link Relay
+
+```bash
+cd packages/relay
+npm run build
+npm pack
+npm link
+```
+
+After linking, running via `npx` will use your local relay version.
+
+### Command Line Options
+
+- `--server-url`: Base URL of the MCP server (default: http://localhost:60100)
+- `--listen-port`: Starting port to listen for incoming JSON-RPC messages (default: 6011)
+- `--disable`: Disable specific tools from being displayed (e.g., `--disable text_editor --disable list_directory`)
+- `--enable`: Enable only specific tools (whitelist mode) - when used, only specified tools will be available (e.g., `--enable execute_command --enable code_checker`)
+
 
 ## Key Features
 
