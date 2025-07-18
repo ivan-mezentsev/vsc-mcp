@@ -26,9 +26,9 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'too
       serverStatusBarItem.command = undefined;
       break;
     case 'tool_list_updated':
-      serverStatusBarItem.text = '$(warning) MCP Server';
-      serverStatusBarItem.tooltip = 'Tool list updated - Restart MCP Client';
-      serverStatusBarItem.command = 'mcpServer.stopServer';
+      // serverStatusBarItem.text = '$(warning) MCP Server';
+      // serverStatusBarItem.tooltip = 'Tool list updated - Restart MCP Client';
+      // serverStatusBarItem.command = 'mcpServer.stopServer';
       break;
     case 'stopped':
     default:
