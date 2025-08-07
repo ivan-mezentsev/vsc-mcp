@@ -414,7 +414,7 @@ function registerTools(mcpServer: ToolRegistry) {
   mcpServer.tool(
     'get_terminal_output',
     dedent`
-      Retrieve the output from a specific terminal by its ID.
+      Retrieve the output from a specific terminal by its ID (default: "1").
       This tool allows you to check the current or historical output of a terminal,
       which is particularly useful when working with long-running commands or
       commands started in background mode with the execute_command tool.
