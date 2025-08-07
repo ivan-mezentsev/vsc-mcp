@@ -16,24 +16,24 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'too
 
   switch (status) {
     case 'running':
-      serverStatusBarItem.text = '$(server) MCP Server';
-      serverStatusBarItem.tooltip = 'MCP Server is running';
+      serverStatusBarItem.text = '$(server) VSC MCP';
+      serverStatusBarItem.tooltip = 'VSC MCP is running';
       serverStatusBarItem.command = 'mcpServer.stopServer';
       break;
     case 'starting':
-      serverStatusBarItem.text = '$(sync~spin) MCP Server';
+      serverStatusBarItem.text = '$(sync~spin) VSC MCP';
       serverStatusBarItem.tooltip = 'Starting...';
       serverStatusBarItem.command = undefined;
       break;
     case 'tool_list_updated':
-      // serverStatusBarItem.text = '$(warning) MCP Server';
+      // serverStatusBarItem.text = '$(warning) VSC MCP';
       // serverStatusBarItem.tooltip = 'Tool list updated - Restart MCP Client';
       // serverStatusBarItem.command = 'mcpServer.stopServer';
       break;
     case 'stopped':
     default:
-      serverStatusBarItem.text = '$(circle-slash) MCP Server';
-      serverStatusBarItem.tooltip = 'MCP Server is not running';
+      serverStatusBarItem.text = '$(circle-slash) VSC MCP';
+      serverStatusBarItem.tooltip = 'VSC MCP is not running';
       serverStatusBarItem.command = 'mcpServer.toggleActiveStatus';
       break;
   }
@@ -58,7 +58,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
 
   // Server start function
   async function startServer(port: number) {
-    outputChannel.appendLine(`DEBUG: Starting MCP Server on port ${port}...`);
+    outputChannel.appendLine(`DEBUG: Starting VSC MCP on port ${port}...`);
     transport = new BidiHttpTransport(port, outputChannel);
     // サーバー状態変更のイベントハンドラを設定
     transport.onServerStatusChanged = (status) => {
@@ -86,9 +86,9 @@ export const activate = async (context: vscode.ExtensionContext) => {
   const port = mcpConfig.get<number>('port', 60100);
   try {
     await startServer(port);
-    outputChannel.appendLine(`MCP Server started on port ${port}.`);
+    outputChannel.appendLine(`VSC MCP started on port ${port}.`);
   } catch (err) {
-    outputChannel.appendLine(`Failed to start MCP Server: ${err}`);
+    outputChannel.appendLine(`Failed to start VSC MCP: ${err}`);
   }
 
   // Register VSCode commands
