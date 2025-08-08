@@ -50,8 +50,8 @@ export const activate = async (context: vscode.ExtensionContext) => {
   // Initialize the MCP server instance
   const mcpServer = createMcpServer(outputChannel);
 
-  // Create status bar item with a stable identifier for modern VS Code versions
-  serverStatusBarItem = vscode.window.createStatusBarItem('mcpServer.status', vscode.StatusBarAlignment.Right, 100);
+  // Create status bar item with a stable identifier; place it on the left with priority -100
+  serverStatusBarItem = vscode.window.createStatusBarItem('mcpServer.status', vscode.StatusBarAlignment.Left, -100);
   context.subscriptions.push(serverStatusBarItem);
   // Show initial state to ensure visibility even before server starts
   updateServerStatusBar('starting');

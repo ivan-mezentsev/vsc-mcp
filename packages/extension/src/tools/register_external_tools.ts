@@ -59,37 +59,45 @@ export function registerExternalTools(mcpServer: ToolRegistry) {
 
 // 各ツールを登録する関数
 function registerTool(mcpServer: ToolRegistry, tool: vscode.LanguageModelToolInformation) {
-  mcpServer.toolWithRawInputSchema(
-    tool.name,
-    tool.description || `Tool: ${tool.name}`,
-    tool.inputSchema as (Tool['inputSchema'] | undefined) ?? { type: 'object' },
-    async (params: any) => {
-      try {
-        // console.log('TEST', await vscode.lm.invokeTool('copilot_getErrors', {
-        //   input: {},
-        //   toolInvocationToken: undefined,
-        // }));
-        // VSCodeのネイティブツールを呼び出す
-        const result = await vscode.lm.invokeTool(tool.name, {
-          input: params,
-          toolInvocationToken: undefined
-        });
+  try {
+    mcpServer.toolWithRawInputSchema(
+      tool.name,
+      tool.description || `Tool: ${tool.name}`,
+      tool.inputSchema as (Tool['inputSchema'] | undefined) ?? { type: 'object' },
+      async (params: any) => {
+        try {
+          // VSCode のネイティブツールを呼び出す
+          const result = await vscode.lm.invokeTool(tool.name, {
+            input: params,
+            toolInvocationToken: undefined,
+          });
 
-        // 結果を適切な形式に変換
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify(result.content)
-          }],
-          isError: false
-        };
-      } catch (error) {
-        console.error(`Error invoking tool ${tool.name}:`, error);
-        return {
-          content: [{ type: 'text' as const, text: `Error invoking ${tool.name}: ${error}` }],
-          isError: true
-        };
-      }
+          // 結果を適切な形式に変換
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify(result.content),
+              },
+            ],
+            isError: false,
+          };
+        } catch (error) {
+          console.error(`Error invoking tool ${tool.name}:`, error);
+          return {
+            content: [{ type: 'text' as const, text: `Error invoking ${tool.name}: ${error}` }],
+            isError: true,
+          };
+        }
+      },
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes('is already registered')) {
+      // Skip duplicate registrations to keep activation idempotent across environments
+      console.warn(`Skip registering external tool '${tool.name}' because it is already registered.`);
+      return;
     }
-  );
+    throw e;
+  }
 }
