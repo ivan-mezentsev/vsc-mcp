@@ -5,7 +5,7 @@ import { createMcpServer, EXTENSION_NAME } from './mcp-server';
 import { DIFF_VIEW_URI_SCHEME, DiffViewProvider } from './utils/diff-view-provider';
 
 let serverStatusBarItem: vscode.StatusBarItem;
-let transport: HttpTransport;
+let transport: HttpTransport | undefined;
 
 function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
   if (!serverStatusBarItem) {

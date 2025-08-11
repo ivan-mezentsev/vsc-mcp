@@ -11,6 +11,14 @@ export default [
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module'
+      },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        fetch: 'readonly',
+        NodeJS: 'readonly'
       }
     },
     plugins: {
@@ -22,7 +30,8 @@ export default [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       'prefer-const': 'error',
-      'no-var': 'error'
+      'no-var': 'error',
+      'no-undef': 'off' // Disable for TypeScript
     }
   },
   {

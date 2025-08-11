@@ -19,12 +19,12 @@ export function createMcpServer(): McpServer {
   });
 
   // Define available tools
-  const tools = [
+  const tools: any[] = [
     {
       name: 'text_editor',
       description: 'Perform file operations: view, edit, create files',
       inputSchema: {
-        type: 'object',
+        type: 'object' as const,
         properties: {
           command: {
             type: 'string',
@@ -43,7 +43,7 @@ export function createMcpServer(): McpServer {
       name: 'execute_command',
       description: 'Execute commands in VSCode integrated terminal',
       inputSchema: {
-        type: 'object',
+        type: 'object' as const,
         properties: {
           command: {
             type: 'string',
@@ -57,7 +57,7 @@ export function createMcpServer(): McpServer {
       name: 'list_directory',
       description: 'List directory contents in a tree format',
       inputSchema: {
-        type: 'object',
+        type: 'object' as const,
         properties: {
           path: {
             type: 'string',
