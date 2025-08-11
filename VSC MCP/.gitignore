@@ -1,7 +1,0 @@
-node_modules/
-*.vsix
-dist/
-out/
-*.log
-.DS_Store
-.vscode-test/

@@ -1,40 +1,27 @@
 import js from '@eslint/js';
-import tsParser from '@typescript-eslint/parser';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
+import typescript from '@typescript-eslint/eslint-plugin';
+import typescriptParser from '@typescript-eslint/parser';
 
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
-      parser: tsParser,
+      parser: typescriptParser,
       parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module'
+        ecmaVersion: 2022,
+        sourceType: 'module',
       },
-      globals: {
-        console: 'readonly',
-        process: 'readonly',
-        setTimeout: 'readonly',
-        setInterval: 'readonly',
-        fetch: 'readonly',
-        NodeJS: 'readonly'
-      }
     },
     plugins: {
-      '@typescript-eslint': tsPlugin
+      '@typescript-eslint': typescript,
     },
     rules: {
-      ...tsPlugin.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'prefer-const': 'error',
-      'no-var': 'error',
-      'no-undef': 'off' // Disable for TypeScript
-    }
+      ...typescript.configs.recommended.rules,
+      
+      // Strict TypeScript rules - no "as any" or "as unknown"
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+    },
   },
-  {
-    ignores: ['dist/', 'out/', 'node_modules/', '*.js']
-  }
 ];

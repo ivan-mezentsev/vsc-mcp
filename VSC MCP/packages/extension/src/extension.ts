@@ -1,117 +1,150 @@
 import * as vscode from 'vscode';
-import { HttpTransport } from './transport/http-transport';
-import { registerCommands } from './commands';
-import { createMcpServer, EXTENSION_NAME } from './mcp-server';
-import { DIFF_VIEW_URI_SCHEME, DiffViewProvider } from './utils/diff-view-provider';
+import { createMcpServer } from './mcp-server';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { HTTPServerTransport } from './transport/http-transport';
 
-let serverStatusBarItem: vscode.StatusBarItem;
-let transport: HttpTransport | undefined;
+let mcpServer: McpServer | null = null;
+let mcpTransport: HTTPServerTransport | null = null;
+let outputChannel: vscode.OutputChannel;
+let statusBarItem: vscode.StatusBarItem;
 
-function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
-  if (!serverStatusBarItem) {
+export async function activate(context: vscode.ExtensionContext) {
+  console.log('VSC MCP extension is being activated');
+
+  // Create output channel
+  outputChannel = vscode.window.createOutputChannel('VSC MCP');
+  context.subscriptions.push(outputChannel);
+
+  // Create status bar item
+  statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -100);
+  statusBarItem.command = 'vscMcp.toggle';
+  context.subscriptions.push(statusBarItem);
+
+  // Register commands
+  const commands = [
+    vscode.commands.registerCommand('vscMcp.start', () => startServer()),
+    vscode.commands.registerCommand('vscMcp.stop', () => stopServer()),
+    vscode.commands.registerCommand('vscMcp.restart', () => restartServer()),
+    vscode.commands.registerCommand('vscMcp.toggle', () => toggleServer()),
+  ];
+
+  commands.forEach(command => context.subscriptions.push(command));
+
+  // Update status bar initially
+  updateStatusBar();
+
+  // Auto-start if configured
+  const config = vscode.workspace.getConfiguration('vscMcp');
+  const startOnActivate = config.get<boolean>('startOnActivate', true);
+  
+  if (startOnActivate) {
+    outputChannel.appendLine('Auto-starting VSC MCP server...');
+    await startServer();
+  }
+}
+
+export function deactivate() {
+  console.log('VSC MCP extension is being deactivated');
+  return stopServer();
+}
+
+async function startServer(): Promise<void> {
+  if (mcpServer) {
+    outputChannel.appendLine('VSC MCP server is already running');
     return;
   }
 
-  switch (status) {
-    case 'running':
-      serverStatusBarItem.text = '$(server) VSC MCP';
-      serverStatusBarItem.tooltip = 'VSC MCP server is running';
-      serverStatusBarItem.command = 'vscMcp.stopServer';
-      break;
-    case 'starting':
-      serverStatusBarItem.text = '$(sync~spin) VSC MCP';
-      serverStatusBarItem.tooltip = 'Starting VSC MCP server...';
-      serverStatusBarItem.command = undefined;
-      break;
-    case 'stopped':
-    default:
-      serverStatusBarItem.text = '$(circle-slash) VSC MCP';
-      serverStatusBarItem.tooltip = 'VSC MCP server is not running';
-      serverStatusBarItem.command = 'vscMcp.toggleActiveStatus';
-      break;
+  try {
+    const config = vscode.workspace.getConfiguration('vscMcp');
+    const port = config.get<number>('port', 60100);
+
+    outputChannel.appendLine(`Starting VSC MCP server on port ${port}...`);
+
+    // Create MCP server
+    mcpServer = createMcpServer(outputChannel);
+
+    // Create HTTP transport
+    mcpTransport = new HTTPServerTransport(port, outputChannel);
+
+    // Start the transport
+    await mcpTransport.start();
+
+    // Connect server to transport
+    await mcpServer.connect(mcpTransport);
+
+    outputChannel.appendLine(`VSC MCP server started successfully on port ${port}`);
+    vscode.window.showInformationMessage(`VSC MCP server running on port ${port}`);
+
+  } catch (error) {
+    const errorMessage = `Failed to start VSC MCP server: ${error instanceof Error ? error.message : String(error)}`;
+    outputChannel.appendLine(errorMessage);
+    vscode.window.showErrorMessage(errorMessage);
+    
+    // Clean up on error
+    mcpServer = null;
+    mcpTransport = null;
   }
-  serverStatusBarItem.show();
+
+  updateStatusBar();
 }
 
-export const activate = async (context: vscode.ExtensionContext) => {
-  const outputChannel = vscode.window.createOutputChannel(EXTENSION_NAME);
-  outputChannel.appendLine(`Activating ${EXTENSION_NAME}...`);
+async function stopServer(): Promise<void> {
+  if (!mcpServer) {
+    outputChannel.appendLine('VSC MCP server is not running');
+    return;
+  }
 
-  const mcpServer = createMcpServer();
+  try {
+    outputChannel.appendLine('Stopping VSC MCP server...');
 
-  // Initialize status bar
-  serverStatusBarItem = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    100
-  );
-  updateServerStatusBar('stopped');
-  context.subscriptions.push(serverStatusBarItem);
-
-  // Register commands
-  registerCommands(context, {
-    startServer: async () => {
-      try {
-        updateServerStatusBar('starting');
-        const config = vscode.workspace.getConfiguration('vscMcp');
-        const port = config.get<number>('port', 60100);
-        
-        transport = new HttpTransport(port);
-        await transport.start(mcpServer);
-        
-        updateServerStatusBar('running');
-        outputChannel.appendLine(`VSC MCP server started on port ${port}`);
-        vscode.window.showInformationMessage(`VSC MCP server started on port ${port}`);
-      } catch (error) {
-        updateServerStatusBar('stopped');
-        const message = `Failed to start VSC MCP server: ${error}`;
-        outputChannel.appendLine(message);
-        vscode.window.showErrorMessage(message);
-      }
-    },
-    stopServer: async () => {
-      try {
-        if (transport) {
-          await transport.stop();
-          transport = undefined;
-        }
-        updateServerStatusBar('stopped');
-        outputChannel.appendLine('VSC MCP server stopped');
-        vscode.window.showInformationMessage('VSC MCP server stopped');
-      } catch (error) {
-        const message = `Failed to stop VSC MCP server: ${error}`;
-        outputChannel.appendLine(message);
-        vscode.window.showErrorMessage(message);
-      }
-    },
-    toggleActiveStatus: async () => {
-      if (transport) {
-        vscode.commands.executeCommand('vscMcp.stopServer');
-      } else {
-        vscode.commands.executeCommand('vscMcp.startServer');
-      }
+    // Disconnect and cleanup
+    if (mcpTransport) {
+      await mcpTransport.close();
+      mcpTransport = null;
     }
-  });
 
-  // Register diff view provider
-  const diffViewProvider = new DiffViewProvider();
-  context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(
-      DIFF_VIEW_URI_SCHEME,
-      diffViewProvider
-    )
-  );
+    if (mcpServer) {
+      await mcpServer.close();
+      mcpServer = null;
+    }
 
-  // Auto-start server if configured
-  const config = vscode.workspace.getConfiguration('vscMcp');
-  if (config.get<boolean>('startOnActivate', true)) {
-    await vscode.commands.executeCommand('vscMcp.startServer');
+    outputChannel.appendLine('VSC MCP server stopped successfully');
+    vscode.window.showInformationMessage('VSC MCP server stopped');
+
+  } catch (error) {
+    const errorMessage = `Error stopping VSC MCP server: ${error instanceof Error ? error.message : String(error)}`;
+    outputChannel.appendLine(errorMessage);
+    vscode.window.showErrorMessage(errorMessage);
   }
 
-  outputChannel.appendLine(`${EXTENSION_NAME} activated successfully`);
-};
+  updateStatusBar();
+}
 
-export const deactivate = async () => {
-  if (transport) {
-    await transport.stop();
+async function restartServer(): Promise<void> {
+  outputChannel.appendLine('Restarting VSC MCP server...');
+  await stopServer();
+  await startServer();
+}
+
+async function toggleServer(): Promise<void> {
+  if (mcpServer) {
+    await stopServer();
+  } else {
+    await startServer();
   }
-};
+}
+
+function updateStatusBar(): void {
+  if (mcpServer) {
+    const config = vscode.workspace.getConfiguration('vscMcp');
+    const port = config.get<number>('port', 60100);
+    statusBarItem.text = `$(server-process) VSC MCP:${port}`;
+    statusBarItem.tooltip = `VSC MCP server running on port ${port}. Click to stop.`;
+    statusBarItem.backgroundColor = undefined;
+  } else {
+    statusBarItem.text = `$(server-process) VSC MCP:Off`;
+    statusBarItem.tooltip = 'VSC MCP server is stopped. Click to start.';
+    statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+  }
+  statusBarItem.show();
+}
