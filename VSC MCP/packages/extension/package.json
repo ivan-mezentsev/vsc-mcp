@@ -1,0 +1,120 @@
+{
+  "name": "vsc-mcp-extension",
+  "displayName": "VSC MCP",
+  "description": "Expose VSCode features through Model Context Protocol, enabling LLMs to access file viewing, editing, and VSCode functionalities.",
+  "publisher": "ivan-mezentsev",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "icon": "icon.png",
+  "homepage": "https://github.com/ivan-mezentsev/vsc-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp/issues"
+  },
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "mcp",
+    "ai",
+    "llm",
+    "model-context-protocol",
+    "automation"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "vscMcp.stopServer",
+        "title": "VSC MCP: Stop Server"
+      },
+      {
+        "command": "vscMcp.startServer",
+        "title": "VSC MCP: Start Server"
+      },
+      {
+        "command": "vscMcp.toggleActiveStatus",
+        "title": "VSC MCP: Toggle Active Status"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "VSC MCP",
+      "properties": {
+        "vscMcp.startOnActivate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start the MCP server automatically when VSCode activates"
+        },
+        "vscMcp.port": {
+          "type": "number",
+          "default": 60100,
+          "description": "Port for the MCP server to listen on"
+        },
+        "vscMcp.confirmationUI": {
+          "type": "string",
+          "enum": [
+            "statusBar",
+            "quickPick"
+          ],
+          "default": "quickPick",
+          "description": "UI style for confirming changes: status bar buttons or quick pick dialog"
+        },
+        "vscMcp.confirmNonDestructiveCommands": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require confirmation for commands marked as non-destructive"
+        }
+      }
+    }
+  },
+  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "pnpm package",
+    "package-extension": "vsce package --no-dependencies",
+    "compile": "pnpm check-types && node build.js",
+    "check-types": "tsc --noEmit",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node build.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "pnpm check-types && node build.js --production",
+    "lint": "eslint src --ext ts",
+    "clean": "rimraf dist out *.vsix",
+    "build": "pnpm compile"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.1",
+    "@types/express": "^5.0.0",
+    "@types/node": "~22.13.10",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/vscode": "^1.102.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.1",
+    "eslint": "^9.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.2",
+    "dedent": "^1.5.3",
+    "diff": "^7.0.0",
+    "express": "^4.21.2",
+    "ignore": "^7.0.3",
+    "isbinaryfile": "^5.0.4",
+    "mammoth": "^1.9.0",
+    "p-wait-for": "^5.0.2",
+    "pdf-parse": "^1.1.1",
+    "strip-bom": "^5.0.0"
+  }
+}

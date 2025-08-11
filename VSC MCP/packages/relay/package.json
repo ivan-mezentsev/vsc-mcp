@@ -1,0 +1,56 @@
+{
+  "name": "vsc-mcp-relay",
+  "version": "1.0.0",
+  "description": "MCP relay that connects to VSC MCP extension, enabling external access to VSCode features",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "vsc-mcp": "dist/index.js"
+  },
+  "author": "Ivan Mezentsev",
+  "license": "MIT",
+  "homepage": "https://github.com/ivan-mezentsev/vsc-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp/issues"
+  },
+  "keywords": [
+    "vscode",
+    "mcp",
+    "relay",
+    "model-context-protocol",
+    "ai",
+    "llm"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "lint": "eslint src --ext ts",
+    "clean": "rimraf dist",
+    "prepublish": "pnpm build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^22.13.10",
+    "eslint": "^9.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.2",
+    "fs-extra": "^11.3.0"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "vsc-mcp",
+  "version": "1.0.0",
+  "description": "VSCode as MCP Server - Expose VSCode features through Model Context Protocol",
+  "author": "Ivan Mezentsev",
+  "license": "MIT",
+  "homepage": "https://github.com/ivan-mezentsev/vsc-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp.git"
+  },
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r run clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "eslint": "^9.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
