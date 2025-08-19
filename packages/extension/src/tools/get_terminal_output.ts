@@ -5,7 +5,12 @@ import { TerminalRegistry } from "../integrations/terminal/TerminalRegistry"
 import { formatResponse, ToolResponse } from "../utils/response"
 
 export const getTerminalOutputSchema = z.object({
-  terminalId: z.string().or(z.number()).describe("The ID of the terminal to get output from"),
+  // Use string-only here for model/tool schema compatibility (some models reject union types)
+  terminalId: z
+    .string()
+    .describe(
+      "The ID of the terminal to get output from (provide as a string, e.g., \"1\")."
+    ),
   maxLines: z.number().optional().default(1000).describe("Maximum number of lines to retrieve (default: 1000)"),
 })
 

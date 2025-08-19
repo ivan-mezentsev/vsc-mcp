@@ -17,10 +17,10 @@ import {
   stopDebugSession,
   stopDebugSessionSchema,
 } from './tools/debug_tools';
-import { executeCommandSchema, executeCommandToolHandler } from './tools/execute_command';
+import { executeCommandToolHandler } from './tools/execute_command';
 import { executeVSCodeCommandSchema, executeVSCodeCommandToolHandler } from './tools/execute_vscode_command';
 import { focusEditorTool } from './tools/focus_editor';
-import { getTerminalOutputSchema, getTerminalOutputToolHandler } from './tools/get_terminal_output';
+import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
 import { listDirectorySchema, listDirectoryTool } from './tools/list_directory';
 import { listVSCodeCommandsSchema, listVSCodeCommandsToolHandler } from './tools/list_vscode_commands';
 import { previewUrlSchema, previewUrlToolHandler } from './tools/preview_url';
@@ -217,8 +217,8 @@ export function createMcpServer(_outputChannel: vscode.OutputChannel): McpServer
 }
 
 function registerTools(mcpServer: ToolRegistry) {
-  // Register the "execute_command" tool
-  mcpServer.tool(
+  // Register the "execute_command" tool (RAW schema)
+  mcpServer.toolWithRawInputSchema(
     'execute_command',
     dedent`
       Execute a command in a VSCode integrated terminal with proper shell integration.
@@ -232,9 +232,34 @@ function registerTools(mcpServer: ToolRegistry) {
       When running commands that might prompt for user input, include appropriate flags like '-y' or '--yes'
       to prevent interactive prompts from blocking execution.
     `.trim(),
-    executeCommandSchema.shape,
+    {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'The command to execute' },
+        customCwd: { type: 'string', description: 'Optional custom working directory for command execution' },
+        modifySomething: { type: 'boolean', description: 'Flag indicating if the command is potentially destructive or modifying. Default is true.' },
+        background: { type: 'boolean', description: 'Run command without waiting for completion. Default is false.' },
+        timeout: { type: 'number', description: 'Timeout in milliseconds for reporting purposes. Default is 300000 (5 minutes).' },
+      },
+      required: ['command'],
+    },
     async (params) => {
-      const result = await executeCommandToolHandler(params);
+      const p = (params ?? {}) as {
+        command: string;
+        customCwd?: string;
+        modifySomething?: boolean;
+        background?: boolean;
+        timeout?: number;
+      };
+
+      const result = await executeCommandToolHandler({
+        command: p.command,
+        customCwd: typeof p.customCwd === 'string' ? p.customCwd : undefined,
+        modifySomething: typeof p.modifySomething === 'boolean' ? p.modifySomething : true,
+        background: typeof p.background === 'boolean' ? p.background : false,
+        timeout: typeof p.timeout === 'number' ? p.timeout : 300000,
+      } as any);
+
       return {
         content: result.content.map(item => ({
           ...item,
@@ -245,8 +270,8 @@ function registerTools(mcpServer: ToolRegistry) {
     }
   );
 
-  // Register the "code_checker" tool
-  mcpServer.tool(
+  // Register the "code_checker" tool (RAW schema)
+  mcpServer.toolWithRawInputSchema(
     'code_checker',
     dedent`
       Retrieve diagnostics from VSCode's language services for the active workspace.
@@ -254,22 +279,27 @@ function registerTools(mcpServer: ToolRegistry) {
       errors were introduced, or when requested by the user.
     `.trim(),
     {
-      severityLevel: z
-        .enum(['Error', 'Warning', 'Information', 'Hint'])
-        .default('Warning')
-        .describe("Minimum severity level for checking issues: 'Error', 'Warning', 'Information', or 'Hint'."),
+      type: 'object',
+      properties: {
+        severityLevel: {
+          type: 'string',
+          description: "Minimum severity level: 'Error', 'Warning', 'Information', or 'Hint' (default: 'Warning').",
+          enum: ['Error', 'Warning', 'Information', 'Hint'],
+        },
+      },
     },
-    async (params: { severityLevel?: 'Error' | 'Warning' | 'Information' | 'Hint' }) => {
-      const severityLevel = params.severityLevel
-        ? DiagnosticSeverity[params.severityLevel]
+    async (params) => {
+      const p = (params ?? {}) as { severityLevel?: 'Error' | 'Warning' | 'Information' | 'Hint' };
+      const severityLevel = p.severityLevel && DiagnosticSeverity[p.severityLevel]
+        ? DiagnosticSeverity[p.severityLevel]
         : DiagnosticSeverity.Warning;
       const result = codeCheckerTool(severityLevel);
       return {
         ...result,
         content: result.content.map((c) => ({
           ...c,
-          text: typeof c.text === 'string' ? c.text : String(c.text),
-          type: 'text',
+          text: typeof (c as any).text === 'string' ? (c as any).text : String((c as any).text),
+          type: 'text' as const,
         })),
       };
     },
@@ -411,7 +441,7 @@ function registerTools(mcpServer: ToolRegistry) {
   );
 
   // Register get terminal output tool
-  mcpServer.tool(
+  mcpServer.toolWithRawInputSchema(
     'get_terminal_output',
     dedent`
       Retrieve the output from a specific terminal by its ID (default: "1").
@@ -419,9 +449,23 @@ function registerTools(mcpServer: ToolRegistry) {
       which is particularly useful when working with long-running commands or
       commands started in background mode with the execute_command tool.
     `.trim(),
-    getTerminalOutputSchema.shape,
-    async (params: z.infer<typeof getTerminalOutputSchema>) => {
-      const result = await getTerminalOutputToolHandler(params);
+    {
+      type: 'object',
+      properties: {
+        terminalId: {
+          type: 'string',
+          description: 'The ID of the terminal to get output from (provide as a string, e.g., "1").',
+        },
+        maxLines: {
+          type: 'number',
+          description: 'Maximum number of lines to retrieve (default: 1000)',
+        },
+      },
+      required: ['terminalId'],
+    },
+    async (params) => {
+      const p = params as { terminalId: string; maxLines?: number };
+      const result = await getTerminalOutputToolHandler({ terminalId: p.terminalId, maxLines: p.maxLines ?? 1000 });
       return {
         content: result.content.map(item => ({
           ...item,

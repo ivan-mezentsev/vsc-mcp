@@ -94,7 +94,7 @@ export class ExecuteCommandTool {
       return [
         false,
         formatResponse.toolResult(
-          `Command started in background mode and is running in the terminal (id: ${terminalId}). ` +
+          `Command started in background mode and is running in the terminal (id: "${terminalId}"). ` +
           `You can check the output later using the get_terminal_output tool with this terminal id.`
         ),
       ]
@@ -123,7 +123,7 @@ export class ExecuteCommandTool {
 
     if (completed) {
       return [false, formatResponse.toolResult(
-        `Command executed in terminal (id: ${terminalId}).${result ? `\nOutput:\n${result}` : ""}`
+  `Command executed in terminal (id: "${terminalId}").${result ? `\nOutput:\n${result}` : ""}`
       )]
     } else {
       // If we got here and it's not completed, it's either still running or hit the timeout
@@ -131,7 +131,7 @@ export class ExecuteCommandTool {
       return [
         false,
         formatResponse.toolResult(
-          `Command is still running in terminal (id: ${terminalId})${timeoutMessage}.${result ? `\nHere's the output so far:\n${result}` : ""
+          `Command is still running in terminal (id: "${terminalId}")${timeoutMessage}.${result ? `\nHere's the output so far:\n${result}` : ""
           }\n\nYou can check for more output later using the get_terminal_output tool with this terminal id.`
         ),
       ]
