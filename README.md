@@ -41,27 +41,32 @@ After linking, running via `npx` will use your local relay version.
 ## Key Features
 
 ### Code Editing Support
+
 - Review proposed code changes from an LLM through diffs, allowing you to accept, reject, or provide feedback.
 - Real-time diagnostic messages (e.g., type errors) sent instantly to the LLM for immediate corrections.
 
 ![Code editing diff](https://storage.googleapis.com/zenn-user-upload/778b7e9ad8c4-20250407.gif)
 
 ### Terminal Operations
+
 - Execute commands within VSCode’s integrated terminal (supports background/foreground execution, and timeout settings).
 
 ### Preview Tools
+
 - Preview URLs directly within VSCode’s built-in browser (e.g., automatically opens browser preview after starting a Vite server).
 
 ![Preview tool](https://storage.googleapis.com/zenn-user-upload/8968c9ad3920-20250407.gif)
 
 ### Multi-instance Switching
+
 - Easily switch the MCP server between multiple open VSCode windows.(Just by clicking the status bar item)
 
 ![Instance switching](https://storage.googleapis.com/zenn-user-upload/0a2bc2bee634-20250407.gif)
 
-### Relay Functionality (Experimental)
-- Relay and expose built-in MCP servers introduced in VSCode 1.99 externally.
-- Allows external access to tools provided by other MCP extensions, such as GitHub Copilot.
+### Relay Functionality
+
+- Returns only the built-in tools defined in the relay's `initial_tools.ts`.
+- Proxies tool execution to the VSCode MCP extension at `--server-url`.
 
 ## Available Built-in Tools
 
