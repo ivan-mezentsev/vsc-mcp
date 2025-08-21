@@ -1,3 +1,8 @@
+# VSC MCP
+
+Maintained fork by Ivan Mezentsev (<https://github.com/ivan-mezentsev>)
+Derived from acomagu/vscode-as-mcp-server by Yuki Ito
+
 VSCode as MCP Server
 Copyright 2025 Yuki Ito
 
@@ -7,7 +12,7 @@ This product includes source code developed by third parties:
 
 [1] Roo Code
 Apache License 2.0
-https://github.com/RooVetGit/Roo-Code
+<https://github.com/RooVetGit/Roo-Code>
 
                                  Apache License
                            Version 2.0, January 2004
@@ -215,7 +220,7 @@ https://github.com/RooVetGit/Roo-Code
 
 [2] Cline
 Apache License 2.0
-https://github.com/cline/cline
+<https://github.com/cline/cline>
 
                                  Apache License
                            Version 2.0, January 2004
@@ -421,7 +426,7 @@ https://github.com/cline/cline
 
 [3] VSCode MCP Server
 MIT License
-https://github.com/microsoft/semanticworkbench
+<https://github.com/microsoft/semanticworkbench>
 
 MIT License
 

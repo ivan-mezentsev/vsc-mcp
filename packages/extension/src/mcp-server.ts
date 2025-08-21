@@ -1,7 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
-import { CallToolRequestSchema, CallToolResult, ErrorCode, ListResourcesRequestSchema, ListToolsRequestSchema, ListToolsResult, McpError, ReadResourceRequestSchema, Tool, ServerRequest, ServerNotification } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, CallToolResult, ErrorCode, ListToolsRequestSchema, ListToolsResult, McpError, Tool, ServerRequest, ServerNotification } from '@modelcontextprotocol/sdk/types.js';
 import dedent from 'dedent';
 import * as vscode from 'vscode';
 import { DiagnosticSeverity } from 'vscode';
@@ -9,23 +9,9 @@ import { AnyZodObject, z, ZodRawShape } from 'zod';
 import { zodToJsonSchema } from "zod-to-json-schema";
 import packageJson from '../package.json';
 import { codeCheckerTool } from './tools/code_checker';
-import {
-  listDebugSessions,
-  listDebugSessionsSchema,
-  startDebugSession,
-  startDebugSessionSchema,
-  stopDebugSession,
-  stopDebugSessionSchema,
-} from './tools/debug_tools';
 import { executeCommandToolHandler } from './tools/execute_command';
-import { executeVSCodeCommandSchema, executeVSCodeCommandToolHandler } from './tools/execute_vscode_command';
 import { focusEditorTool } from './tools/focus_editor';
 import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
-import { listDirectorySchema, listDirectoryTool } from './tools/list_directory';
-import { listVSCodeCommandsSchema, listVSCodeCommandsToolHandler } from './tools/list_vscode_commands';
-import { previewUrlSchema, previewUrlToolHandler } from './tools/preview_url';
-import { registerExternalTools } from './tools/register_external_tools';
-import { textEditorSchema, textEditorTool } from './tools/text_editor';
 
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
@@ -210,8 +196,6 @@ export function createMcpServer(_outputChannel: vscode.OutputChannel): McpServer
 
   // Register tools
   registerTools(toolRegistry);
-  // Register resource handlers
-  registerResourceHandlers(mcpServer);
 
   return mcpServer;
 }
@@ -328,118 +312,6 @@ function registerTools(mcpServer: ToolRegistry) {
     },
   );
 
-  // Register debug tools
-  mcpServer.tool(
-    'list_debug_sessions',
-    'List all active debug sessions in the workspace.',
-    listDebugSessionsSchema.shape,
-    async () => {
-      const result = listDebugSessions();
-      return {
-        ...result,
-        content: result.content.map((item) => ({ type: 'text', text: JSON.stringify(item.json) })),
-      };
-    },
-  );
-
-  mcpServer.tool(
-    'start_debug_session',
-    'Start a new debug session with the provided configuration.',
-    startDebugSessionSchema.shape,
-    async (params) => {
-      const result = await startDebugSession(params);
-      return {
-        ...result,
-        content: result.content.map((item) => ({
-          ...item,
-          type: 'text' as const,
-        })),
-      };
-    },
-  );
-
-  mcpServer.tool(
-    'restart_debug_session',
-    'Restart a debug session by stopping it and then starting it with the provided configuration.',
-    startDebugSessionSchema.shape,
-    async (params) => {
-      await stopDebugSession({ sessionName: params.configuration.name });
-      const result = await startDebugSession(params);
-      return {
-        ...result,
-        content: result.content.map((item) => ({
-          ...item,
-          type: 'text' as const,
-        })),
-      };
-    },
-  );
-
-  mcpServer.tool(
-    'stop_debug_session',
-    'Stop all debug sessions that match the provided session name.',
-    stopDebugSessionSchema.shape,
-    async (params) => {
-      const result = await stopDebugSession(params);
-      return {
-        ...result,
-        content: result.content.map((item) => ({
-          ...item,
-          type: 'text' as const,
-        })),
-      };
-    },
-  );
-
-  // Register text editor tool
-  mcpServer.tool(
-    'text_editor',
-    dedent`
-      A text editor tool that provides file manipulation capabilities using VSCode's native APIs:
-      - view: Read file contents with optional line range
-      - str_replace: Replace text in file
-      - create: Create new file
-      - insert: Insert text at specific line
-      - undo_edit: Restore from backup
-
-      Code Editing Tips:
-      - VSCode may automatically prune unused imports when saving. To prevent this, make sure the imported type is
-        actually used in your code before adding the import.
-    `.trim(),
-    textEditorSchema.shape,
-    async (params) => {
-      const result = await textEditorTool(params);
-      return {
-        content: result.content.map(item => ({
-          ...item,
-          type: 'text' as const,
-        })),
-        isError: result.isError,
-      };
-    }
-  );
-
-  // Register list directory tool
-  mcpServer.tool(
-    'list_directory',
-    dedent`
-      List directory contents in a tree format, respecting .gitignore patterns.
-      Shows files and directories with proper indentation and icons.
-      Useful for exploring workspace structure while excluding ignored files.
-    `.trim(),
-    listDirectorySchema.shape,
-    async (params) => {
-      const result = await listDirectoryTool(params);
-      return {
-        content: result.content.map(item => ({
-          ...item,
-          type: 'text' as const,
-        })),
-        isError: result.isError,
-      };
-    }
-  );
-
   // Register get terminal output tool
   mcpServer.toolWithRawInputSchema(
     'get_terminal_output',
@@ -475,140 +347,4 @@ function registerTools(mcpServer: ToolRegistry) {
       };
     }
   );
-
-  // Register list vscode commands tool
-  mcpServer.tool(
-    'list_vscode_commands',
-    dedent`
-      List available VSCode commands with optional filtering.
-      This tool returns a list of command IDs that can be executed with the execute_vscode_command tool.
-      Use it to discover available commands or find specific commands by keyword.
-    `.trim(),
-    listVSCodeCommandsSchema.shape,
-    async (params: z.infer<typeof listVSCodeCommandsSchema>) => {
-      const result = await listVSCodeCommandsToolHandler(params);
-      return {
-        content: result.content.map((item) => ({
-          ...item,
-          type: 'text' as const,
-        })),
-        isError: result.isError,
-      };
-    }
-  );
-
-  // Register execute vscode command tool
-  mcpServer.tool(
-    'execute_vscode_command',
-    dedent`
-      Execute any VSCode command by its command ID.
-      This tool allows direct access to VSCode's command API, enabling actions like opening views,
-      triggering built-in functionality, or invoking extension commands.
-      Use list_vscode_commands tool first to discover available commands.
-    `.trim(),
-    executeVSCodeCommandSchema.shape,
-    async (params: z.infer<typeof executeVSCodeCommandSchema>) => {
-      const result = await executeVSCodeCommandToolHandler(params);
-      return {
-        content: result.content.map((item) => ({
-          ...item,
-          type: 'text' as const,
-        })),
-        isError: result.isError,
-      };
-    }
-  );
-
-  // Register preview url tool
-  mcpServer.tool(
-    'preview_url',
-    dedent`
-      Open a URL in VSCode's built-in simple browser, beside the current editor.
-      This tool provides a convenient way to preview web content directly within VSCode,
-      without switching to an external browser.
-
-      This tool only accepts valid URLs starting with http:// or https:// protocols.
-      Local file paths are not supported.
-
-      This is particularly useful after starting development servers in background mode.
-
-      Example workflow:
-      1. Start a Vite dev server in background mode:
-         execute_command: { "command": "npm run dev", "background": true }
-      2. Preview the local development server:
-         preview_url: { "url": "http://localhost:5173", "title": "TODO App" }
-    `.trim(),
-    previewUrlSchema.shape,
-    async (params: z.infer<typeof previewUrlSchema>) => {
-      const result = await previewUrlToolHandler(params);
-      return {
-        content: result.content.map((item) => ({
-          ...item,
-          type: 'text' as const,
-        })),
-        isError: result.isError,
-      };
-    }
-  );
-
-  // Register all external tools
-  registerExternalTools(mcpServer);
 }
-
-function registerResourceHandlers(mcpServer: McpServer) {
-  mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    const documents = vscode.workspace.textDocuments;
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-    return {
-      resources: documents.map((doc) => ({
-        uri: `vscode://${doc.uri.fsPath}`,
-        mimeType: doc.languageId ? `text/${doc.languageId}` : "text/plain",
-        name: `Currently Open in Editor: ${doc.fileName}`,
-        description: dedent`
-          This is one of the currently open files in the editor.
-          Language: ${doc.languageId || 'plain text'}
-          Line count: ${doc.lineCount}
-          Note: This list only shows files that are currently open in the editor.
-          There may be more files in the workspace at ${workspaceRoot || 'the current workspace'}.
-        `.trim(),
-      })),
-    };
-  });
-
-  mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    const resourceUrl = new URL(request.params.uri);
-    const filePath = resourceUrl.pathname.replace(/^\//, '');
-
-    const documents = vscode.workspace.textDocuments;
-    const document = documents.find(doc => doc.uri.fsPath === filePath);
-
-    if (!document) {
-      throw new Error("File not found or not open in editor");
-    }
-
-    return {
-      contents: [
-        {
-          uri: request.params.uri,
-          mimeType: document.languageId ? `text/${document.languageId}` : "text/plain",
-          text: document.getText(),
-        },
-      ],
-    };
-  });
-}
-
-// interface Tool<Args extends ZodRawShape> {
-//   name: string;
-//   description: string;
-//   paramsSchema: Args;
-//   cb: ToolCallback<Args>;
-// }
-//
-// export class McpServerHelper {
-//   tools: Tool<any>[] = [];
-//   tool<Args extends ZodRawShape>(name: string, description: string, paramsSchema: Args, cb: ToolCallback<Args>) {
-//     this.tools.push({ name, description, paramsSchema, cb });
-//   }
-// }
