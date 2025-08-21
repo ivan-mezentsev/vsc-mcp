@@ -59,11 +59,15 @@ export class ExecuteCommandTool {
       const userResponse = await this.ask(command);
 
       // If user denied execution
-      if (userResponse !== "Approve") {
+      if (!userResponse.startsWith("Approve")) {
         return [
           false,
           formatResponse.toolResult(`Command execution was denied by the user. ${userResponse !== "Deny" ? `Feedback: ${userResponse}` : ""}`)
         ];
+      }
+      // If response is "Approve:<edited-command>", use edited command
+      if (userResponse.startsWith("Approve:")) {
+        command = userResponse.slice("Approve:".length);
       }
     } else {
       // For non-destructive commands when confirmation is disabled, log that we're skipping confirmation
@@ -139,6 +143,19 @@ export class ExecuteCommandTool {
   }
 
   protected async ask(command: string): Promise<string> {
+  const ui = vscode.workspace.getConfiguration('mcpServer').get<string>('confirmationUI', 'InputBox');
+  if (ui === 'InputBox') {
+      const res = await ConfirmationUI.confirmCommandWithInputBox(
+        'Execute Command?',
+        command,
+        'Approve',
+        'Deny'
+      );
+      if (res.decision === 'Approve') {
+        return `Approve:${res.command}`;
+      }
+      return res.feedback ? res.feedback : 'Deny';
+    }
     return await ConfirmationUI.confirm("Execute Command?", command, "Execute Command", "Deny");
   }
 }

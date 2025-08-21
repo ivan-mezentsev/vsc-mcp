@@ -43,11 +43,12 @@
         "mcpServer.confirmationUI": {
           "type": "string",
           "enum": [
+            "InputBox",
             "statusBar",
             "quickPick"
           ],
-          "default": "quickPick",
-          "description": "The UI to use for confirming changes: status bar buttons or quick pick dialog."
+          "default": "InputBox",
+          "description": "The UI to use for confirming actions: status bar buttons, quick pick dialog, or input box (editable command)."
         },
         "mcpServer.confirmNonDestructiveCommands": {
           "type": "boolean",
