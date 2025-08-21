@@ -1,14 +1,24 @@
 {
-  "name": "vscode-as-mcp-server",
-  "displayName": "VSCode as MCP Server",
-  "description": "Expose VSCode features such as file viewing and editing as MCP, enabling the LLM to access these functionalities.",
-  "publisher": "acomagu",
-  "version": "0.0.25",
+  "name": "vsc-mcp",
+  "displayName": "VSC-MCP Server",
+  "description": "A VSCode extension that transforms your VSCode, Cursor, or Trae into an MCP server, providing advanced control and enhanced capabilities.",
+  "publisher": "ivan-mezentsev",
+  "version": "0.1.0",
   "type": "commonjs",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.94.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp.git"
+  },
+  "homepage": "https://github.com/ivan-mezentsev/vsc-mcp",
+  "bugs": {
+    "url": "https://github.com/ivan-mezentsev/vsc-mcp/issues"
+  },
+  "author": "Ivan Mezentsev (https://github.com/ivan-mezentsev)",
+  "license": "Apache-2.0",
   "activationEvents": [
     "onStartupFinished"
   ],

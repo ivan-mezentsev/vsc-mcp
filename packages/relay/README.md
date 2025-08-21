@@ -1,4 +1,4 @@
-# VSCode as MCP Relay
+# VSC-MCP Relay
 
 This is a Node.js implementation of an MCP (Mechanism, Control, Policy) relay for VSCode extensions. It's based on the Go implementation in ../mcp-relay/main.go but adds the following features:
 
@@ -20,12 +20,12 @@ npm install -g
 ## Usage
 
 ```bash
-vscode-as-mcp-relay --server-url http://localhost:60100 --listen-port 6011
+vsc-mcp --server-url http://localhost:60100 --listen-port 6011
 ```
 
 ### Command Line Options
 
-- `--server-url`: Base URL of the MCP server (default: http://localhost:60100)
+- `--server-url`: Base URL of the MCP server (default: <http://localhost:60100>)
 - `--listen-port`: Starting port to listen for incoming JSON-RPC messages (default: 6011)
 - `--disable`: Disable specific tools from being displayed (e.g., `--disable focus_editor`)
 - `--enable`: Enable only specific tools (whitelist mode) - when used, only specified tools will be available (e.g., `--enable execute_command --enable code_checker`)
@@ -35,15 +35,17 @@ vscode-as-mcp-relay --server-url http://localhost:60100 --listen-port 6011
 The relay implements a custom protocol for communication between clients and servers:
 
 1. **Registration**:
-   ```json
+
+  ```json
    {
      "clientUrl": "http://localhost:PORT",
      "features": ["relay_protocol_v1"]
    }
    ```
 
-2. **Set Main Server** (Client to Server):
-   ```json
+1. **Set Main Server** (Client to Server):
+
+  ```json
    {
      "jsonrpc": "2.0",
      "method": "$relay",
@@ -54,8 +56,9 @@ The relay implements a custom protocol for communication between clients and ser
    }
    ```
 
-3. **Request to be Main** (Server to Client):
-   ```json
+1. **Request to be Main** (Server to Client):
+
+  ```json
    {
      "jsonrpc": "2.0",
      "method": "$relay",
@@ -74,3 +77,7 @@ The relay implements a custom protocol for communication between clients and ser
 4. It processes stdin and relays messages to the active server.
 5. If a server requests to be the main server, the relay can switch its active connection.
 6. If the active server becomes unresponsive, the relay can fail over to another server.
+
+## Attribution
+
+This relay is distributed as part of [vsc-mcp](https://github.com/ivan-mezentsev/vsc-mcp), a fork of [acomagu/vscode-as-mcp-server](https://github.com/acomagu/vscode-as-mcp-server). Original authorship notices and licenses are retained.
