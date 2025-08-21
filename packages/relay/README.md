@@ -27,7 +27,7 @@ vscode-as-mcp-relay --server-url http://localhost:60100 --listen-port 6011
 
 - `--server-url`: Base URL of the MCP server (default: http://localhost:60100)
 - `--listen-port`: Starting port to listen for incoming JSON-RPC messages (default: 6011)
-- `--disable`: Disable specific tools from being displayed (e.g., `--disable text_editor --disable list_directory`)
+- `--disable`: Disable specific tools from being displayed (e.g., `--disable focus_editor`)
 - `--enable`: Enable only specific tools (whitelist mode) - when used, only specified tools will be available (e.g., `--enable execute_command --enable code_checker`)
 
 ## Custom Protocol
