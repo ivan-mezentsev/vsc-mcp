@@ -3,13 +3,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, CallToolResult, JSONRPCRequest, JSONRPCResponse, ListToolsRequestSchema, ListToolsResult } from '@modelcontextprotocol/sdk/types.js';
-import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
-import * as path from 'node:path';
 import { initialTools } from './initial_tools.js';
 
-const CACHE_DIR = path.join(os.homedir(), '.vscode-as-mcp-relay-cache');
-const TOOLS_CACHE_FILE = path.join(CACHE_DIR, 'tools-list-cache.json');
 const MAX_RETRIES = 3;
 const RETRY_INTERVAL = 1000; // 1 second
 
@@ -29,50 +24,7 @@ class MCPRelay {
       },
     });
 
-    // Periodically call listTools to update the tools list
-    setInterval(async () => {
-      let tools: any[];
-      try {
-        const resp = await this.requestWithRetry(this.serverUrl, JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/list',
-          params: {},
-          id: Math.floor(Math.random() * 1000000),
-        } as JSONRPCRequest));
-        const parsedResponse = resp as JSONRPCResponse;
-        tools = parsedResponse.result.tools as any[];
-        // Filter tools based on enabled/disabled lists
-        tools = this.filterTools(tools);
-      } catch (err) {
-        return;
-      }
-
-      const cachedTools = await this.getToolsCache();
-
-      // Compare the fetched tools with the cached ones
-      if (cachedTools && cachedTools.length === tools.length) {
-        console.error('Fetched tools list is the same as the cached one, not updating cache');
-        return { tools: cachedTools };
-      }
-
-      // Notify to user that tools have been updated and restart the client
-      try {
-        await this.requestWithRetry(this.serverUrl + '/notify-tools-updated', '');
-      } catch (err) {
-        console.error(`Failed to notify tools updated: ${(err as Error).message}`);
-      }
-
-      try {
-        await this.saveToolsCache(tools);
-      } catch (cacheErr) {
-        console.error(`Failed to cache tools response: ${(cacheErr as Error).message}`);
-      }
-    }, 3600000); // every 3600 seconds (1 hour)
-
     this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async (request): Promise<ListToolsResult> => {
-      const cachedTools = await this.getToolsCache() ?? initialTools;
-
-      let tools: any[];
       try {
         const response = await this.requestWithRetry(this.serverUrl, JSON.stringify({
           jsonrpc: '2.0',
@@ -81,24 +33,14 @@ class MCPRelay {
           id: Math.floor(Math.random() * 1000000),
         } as JSONRPCRequest));
         const parsedResponse = response as JSONRPCResponse;
-        tools = parsedResponse.result.tools as any[];
+        const tools = parsedResponse.result.tools as any[];
+        const filteredTools = this.filterTools(tools);
+        return { tools: filteredTools };
       } catch (err) {
         console.error(`Failed to fetch tools list: ${(err as Error).message}`);
-        // Filter cached tools based on enabled/disabled lists
-        const filteredCachedTools = this.filterTools(cachedTools);
-        return { tools: filteredCachedTools as any[] };
+        const fallback = this.filterTools(initialTools);
+        return { tools: fallback as any[] };
       }
-
-      // Update cache
-      try {
-        await this.saveToolsCache(tools);
-      } catch (cacheErr) {
-        console.error(`Failed to cache tools response: ${(cacheErr as Error).message}`);
-      }
-
-      // Filter tools based on enabled/disabled lists
-      const filteredTools = this.filterTools(tools);
-      return { tools: filteredTools };
     });
 
     this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
@@ -123,43 +65,7 @@ class MCPRelay {
       }
     });
   }
-  // キャッシュディレクトリの初期化
-  async initCacheDir(): Promise<void> {
-    try {
-      // ディレクトリが存在しない場合は作成
-      try {
-        await fs.mkdir(CACHE_DIR, { recursive: true });
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
-          throw err;
-        }
-      }
-    } catch (err) {
-      console.error(`Failed to initialize cache directory: ${(err as Error).message}`);
-    }
-  }
-
-  // キャッシュの保存
-  async saveToolsCache(tools: any[]): Promise<void> {
-    await this.initCacheDir();
-    try {
-      await fs.writeFile(TOOLS_CACHE_FILE, JSON.stringify(tools), 'utf8');
-      console.error('Tools list cache saved');
-    } catch (err) {
-      console.error(`Failed to save cache: ${(err as Error).message}`);
-    }
-  }
-
-  async getToolsCache() {
-    try {
-      await fs.access(TOOLS_CACHE_FILE);
-      const cacheData = await fs.readFile(TOOLS_CACHE_FILE, 'utf8');
-      return JSON.parse(cacheData) as any[];
-    } catch (err) {
-      console.error(`Failed to load cache file: ${(err as Error).message}`);
-      return null;
-    }
-  }
+  
 
   async requestWithRetry(url: string, body: string): Promise<unknown> {
     let lastError: Error | null = null;
