@@ -115,10 +115,7 @@ export const initialTools = [
       "type": "object",
       "properties": {
         "terminalId": {
-          "type": [
-            "string",
-            "number"
-          ],
+          "type": "string",
           "description": "The ID of the terminal to get output from"
         },
         "maxLines": {
@@ -134,4 +131,4 @@ export const initialTools = [
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   }
-]
+];

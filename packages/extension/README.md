@@ -32,12 +32,7 @@ A VSCode extension that turns your VSCode into an MCP server, enabling advanced 
 - **execute_command**: Execute commands in VSCode’s integrated terminal
 - **code_checker**: Retrieve current diagnostics for your code
 - **focus_editor**: Focus specific locations within files
-- **list_debug_sessions** / **start_debug_session** / **restart_debug_session** / **stop_debug_session**: Manage debug sessions
-- **text_editor**: File operations (view, replace, create, insert, undo)
-- **list_directory**: List directory contents in a tree format
 - **get_terminal_output**: Fetch output from a specified terminal
-- **list_vscode_commands** / **execute_vscode_command**: List and execute arbitrary VSCode commands
-- **preview_url**: Open URLs within VSCode’s integrated browser
 
 ## Installation & Setup
 

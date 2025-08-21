@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { BidiHttpTransport } from './bidi-http-transport';
 import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
-import { DIFF_VIEW_URI_SCHEME } from './utils/DiffViewProvider';
 
 // MCP Server のステータスを表示するステータスバーアイテム
 let serverStatusBarItem: vscode.StatusBarItem;
@@ -69,26 +68,17 @@ export const activate = async (context: vscode.ExtensionContext) => {
     updateServerStatusBar(transport.serverStatus);
   }
 
-  // Register Diff View Provider for file comparison functionality
-  const diffContentProvider = new (class implements vscode.TextDocumentContentProvider {
-    provideTextDocumentContent(uri: vscode.Uri): string {
-      return Buffer.from(uri.query, "base64").toString("utf-8");
-    }
-  })();
-
-  // DiffViewProvider の URI スキームを mcp-diff に変更
-  context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(DIFF_VIEW_URI_SCHEME, diffContentProvider),
-  );
-
-  // Start server if configured to do so
+  // Auto-start server based on configuration
   const mcpConfig = vscode.workspace.getConfiguration('mcpServer');
+  const startOnActivate = mcpConfig.get<boolean>('startOnActivate', true);
   const port = mcpConfig.get<number>('port', 60100);
-  try {
-    await startServer(port);
-    outputChannel.appendLine(`VSC MCP started on port ${port}.`);
-  } catch (err) {
-    outputChannel.appendLine(`Failed to start VSC MCP: ${err}`);
+  if (startOnActivate) {
+    try {
+      await startServer(port);
+      outputChannel.appendLine(`VSC MCP started on port ${port}.`);
+    } catch (err) {
+      outputChannel.appendLine(`Failed to start VSC MCP: ${err}`);
+    }
   }
 
   // Register VSCode commands
