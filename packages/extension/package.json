@@ -1,11 +1,31 @@
 {
-  "name": "vsc-mcp",
+  "name": "vsc-mcp-server",
   "displayName": "VSC-MCP Server",
   "description": "A VSCode extension that transforms your VSCode, Cursor, or Trae into an MCP server, providing advanced control and enhanced capabilities.",
   "publisher": "ivan-mezentsev",
   "version": "0.1.0",
   "type": "commonjs",
   "icon": "icon.png",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "MCP",
+    "Model Context Protocol",
+    "server",
+    "VSCode",
+    "Terminal",
+    "tools",
+    "relay"
+  ],
+  "files": [
+    "dist/**",
+    "icon.png",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "engines": {
     "vscode": "^1.94.0"
   },
@@ -70,7 +90,7 @@
   },
   "main": "./dist/extension.js",
   "scripts": {
-    "vscode:prepublish": "pnpm package",
+  "vscode:prepublish": "pnpm package",
     "package-extension": "cross-env npm_config_user_agent=pnpm vsce package --no-dependencies",
   "generate:icon": "node scripts/generate_icon.js",
     "compile": "pnpm check-types && node build.js",

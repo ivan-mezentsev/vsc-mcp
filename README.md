@@ -1,6 +1,6 @@
 # VSC-MCP Server
 
-A VSCode extension that transforms your VSCode, Cursor, or Trae into an MCP server, providing advanced control and enhanced capabilities.
+A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.
 
 ## Local Build & Installation
 
@@ -16,7 +16,7 @@ npx vsce package --no-dependencies --allow-missing-repository
 Install the packaged extension from disk:
 
 ```bash
-code --install-extension packages/extension/vsc-mcp-0.1.0.vsix
+code --install-extension packages/extension/vsc-mcp-server-0.1.0.vsix
 ```
 
 ### Build and Link Relay
