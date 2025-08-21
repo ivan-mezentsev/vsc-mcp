@@ -16,7 +16,7 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'too
 
   switch (status) {
     case 'running':
-      serverStatusBarItem.text = '$(server) VSC MCP';
+      serverStatusBarItem.text = '$(tools) VSC MCP';
       serverStatusBarItem.tooltip = 'VSC MCP is running';
       serverStatusBarItem.command = 'mcpServer.stopServer';
       break;
