@@ -24,23 +24,9 @@ class MCPRelay {
       },
     });
 
-    this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async (request): Promise<ListToolsResult> => {
-      try {
-        const response = await this.requestWithRetry(this.serverUrl, JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/list',
-          params: request.params,
-          id: Math.floor(Math.random() * 1000000),
-        } as JSONRPCRequest));
-        const parsedResponse = response as JSONRPCResponse;
-        const tools = parsedResponse.result.tools as any[];
-        const filteredTools = this.filterTools(tools);
-        return { tools: filteredTools };
-      } catch (err) {
-        console.error(`Failed to fetch tools list: ${(err as Error).message}`);
-        const fallback = this.filterTools(initialTools);
-        return { tools: fallback as any[] };
-      }
+    this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async (_request): Promise<ListToolsResult> => {
+      const tools = this.filterTools(initialTools);
+      return { tools: tools as any[] };
     });
 
     this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
