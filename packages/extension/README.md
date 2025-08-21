@@ -43,29 +43,29 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 
 2. Configure your MCP client:
 
-Clients like VSCode, Cursor, Trae: add the following to your configuration file (mcp.json):
+    Clients like VSCode, Cursor, Trae: add the following to your configuration file (mcp.json):
 
-```json
-{
-  "mcpServers": {
-      "vscode": {
-        "command": "npx",
-        "args": [
-        "-y",
-        "vsc-mcp",
-        "--server-url",
-        "http://localhost:60100",
-        "--enable",
-        "execute_command",
-        "--enable",
-        "code_checker",
-        "--enable",
-        "get_terminal_output"
-        ]
+    ```json
+    {
+      "mcpServers": {
+          "vscode": {
+            "command": "npx",
+            "args": [
+            "-y",
+            "vsc-mcp",
+            "--server-url",
+            "http://localhost:60100",
+            "--enable",
+            "execute_command",
+            "--enable",
+            "code_checker",
+            "--enable",
+            "get_terminal_output"
+            ]
+          }
       }
-  }
-}
-```
+    }
+    ```
 
 3. Check the MCP server status in the bottom-left VSCode status bar:
 

@@ -4,6 +4,7 @@
 
 - docs(extension): improve documentation
 - ci(extension): automate extension build via GitHub Actions for increased transparency
+- Eliminate QuickPick as a UI option for command confirmation.
 
 ## 0.1.0 - 2025-08-21
 
