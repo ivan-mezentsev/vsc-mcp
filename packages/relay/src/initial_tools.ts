@@ -1,7 +1,7 @@
 export const initialTools = [
   {
     "name": "execute_command",
-    "description": "Execute a command in a VSCode integrated terminal with proper shell integration.\nThis tool provides detailed output and exit status information, and supports:\n- Custom working directory\n- Shell integration for reliable output capture\n- Output compression for large outputs\n- Detailed exit status reporting\n- Flag for potentially destructive commands (potentiallyDestructive: false to skip confirmation for read-only commands)",
+    "description": "Execute a command in a VSCode integrated terminal with proper shell integration.\nThis tool provides detailed output and exit status information, and supports:\n- Custom working directory\n- Shell integration for reliable output capture\n- Output compression for large outputs\n- Detailed exit status reporting\n- Flag for potentially destructive commands (modifySomething: false to skip confirmation for read-only commands)",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -13,7 +13,7 @@ export const initialTools = [
           "type": "string",
           "description": "Optional custom working directory for command execution"
         },
-        "potentiallyDestructive": {
+        "modifySomething": {
           "type": "boolean",
           "default": true,
           "description": "Flag indicating if the command is potentially destructive or modifying. Default is true. Set to false for read-only commands (like grep, find, ls) to skip user confirmation. Commands that could modify files or system state should keep this as true. Note: User can override this behavior with the mcpServer.confirmNonDestructiveCommands setting."
