@@ -1,7 +1,7 @@
 {
   "name": "vsc-mcp-server",
   "displayName": "VSC-MCP Server",
-  "description": "A VSCode extension that transforms your VSCode, Cursor, or Trae into an MCP server, providing advanced control and enhanced capabilities.",
+  "description": "A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.",
   "publisher": "ivan-mezentsev",
   "version": "0.1.0",
   "type": "commonjs",
