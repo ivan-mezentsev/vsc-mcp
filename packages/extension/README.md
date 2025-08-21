@@ -7,7 +7,7 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 - Start/stop the built-in MCP server from VS Code
 - Execute commands in the integrated terminal and fetch output
 - Code diagnostics as a tool for MCP clients
-- Quick confirmation UI options: InputBox (editable), QuickPick, Status Bar buttons
+- Quick confirmation UI options: InputBox (editable), Status Bar buttons
 - Multi‑instance switching across VS Code windows
 
 ## Key Features
@@ -99,7 +99,7 @@ Clients like VSCode, Cursor, Trae: add the following to your configuration file 
 
 - `mcpServer.startOnActivate` (boolean, default: true) — start server on VS Code activation
 - `mcpServer.port` (number, default: 60100) — port of the MCP server
-- `mcpServer.confirmationUI` ("InputBox" | "statusBar" | "quickPick", default: "InputBox") — UI for command confirmation
+- `mcpServer.confirmationUI` ("InputBox" | "statusBar", default: "InputBox") — UI for command confirmation
 - `mcpServer.confirmNonDestructiveCommands` (boolean, default: false) — ask confirmation even for non‑destructive commands
 
 ### Command Line Options

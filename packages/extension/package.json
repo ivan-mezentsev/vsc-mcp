@@ -74,11 +74,10 @@
           "type": "string",
           "enum": [
             "InputBox",
-            "statusBar",
-            "quickPick"
+            "statusBar"
           ],
           "default": "InputBox",
-          "description": "The UI to use for confirming actions: status bar buttons, quick pick dialog, or input box (editable command)."
+          "description": "The UI to use for confirming actions: status bar buttons or input box (editable command)."
         },
         "mcpServer.confirmNonDestructiveCommands": {
           "type": "boolean",
@@ -92,7 +91,7 @@
   "scripts": {
   "vscode:prepublish": "pnpm package",
     "package-extension": "cross-env npm_config_user_agent=pnpm vsce package --no-dependencies",
-  "generate:icon": "node scripts/generate_icon.js",
+    "generate:icon": "node scripts/generate_icon.js",
     "compile": "pnpm check-types && node build.js",
     "check-types": "tsc --noEmit",
     "watch": "npm-run-all -p watch:*",

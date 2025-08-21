@@ -134,73 +134,9 @@ export class ConfirmationUI {
 
     if (confirmationUI === 'InputBox') {
       return await this.showInputBoxConfirmation(message, detail, approveLabel, denyLabel);
-    } else if (confirmationUI === 'quickPick') {
-      return await this.showQuickPickConfirmation(message, detail, approveLabel, denyLabel);
     } else {
       return await this.showStatusBarConfirmation(message, detail, approveLabel, denyLabel);
     }
-  }
-
-  /**
-   * QuickPickを使用した確認UIを表示します
-   */
-  private static async showQuickPickConfirmation(
-    message: string, 
-    detail: string, 
-    approveLabel: string,
-    denyLabel: string
-  ): Promise<string> {
-    // QuickPickを作成
-    const quickPick = vscode.window.createQuickPick();
-
-    quickPick.title = message;
-    quickPick.placeholder = detail || '';
-
-    quickPick.items = [
-      { label: `$(check) Approve`, description: approveLabel },
-      { label: `$(x) Deny`, description: denyLabel }
-    ];
-    quickPick.canSelectMany = false;
-    quickPick.ignoreFocusOut = true;
-
-    return new Promise<string>(async (resolve) => {
-      quickPick.onDidAccept(async () => {
-        const selection = quickPick.selectedItems[0];
-        quickPick.hide();
-
-        if (selection.label.includes("Approve")) {
-          resolve("Approve");
-        } else {
-          // Show QuickInput for feedback if denied
-          const inputBox = vscode.window.createInputBox();
-          inputBox.title = "Feedback";
-          inputBox.placeholder = "Add context for the agent (optional)";
-
-          inputBox.onDidAccept(() => {
-            const feedback = inputBox.value.trim();
-            inputBox.hide();
-            resolve(feedback || "Deny");
-          });
-
-          inputBox.onDidHide(() => {
-            if (inputBox.value.trim() === "") {
-              resolve("Deny");
-            }
-          });
-
-          inputBox.show();
-        }
-      });
-
-      quickPick.onDidHide(() => {
-        // Handle dismissal of the QuickPick
-        if (!quickPick.selectedItems || quickPick.selectedItems.length === 0) {
-          resolve("Deny");
-        }
-      });
-
-      quickPick.show();
-    });
   }
 
   /**
@@ -348,9 +284,9 @@ export class ConfirmationUI {
       });
     } catch (error) {
       console.error('Error using StatusBarManager:', error);
-      // エラーが発生した場合はQuickPickにフォールバック
-      console.log('[ConfirmationUI] Falling back to QuickPick confirmation');
-      return await this.showQuickPickConfirmation(message, detail, approveLabel, denyLabel);
+  // エラーが発生した場合はInputBoxにフォールバック
+  console.log('[ConfirmationUI] Falling back to InputBox confirmation');
+  return await this.showInputBoxConfirmation(message, detail, approveLabel, denyLabel);
     }
   }
 }
