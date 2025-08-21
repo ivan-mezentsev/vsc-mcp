@@ -38,38 +38,56 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 
 ## Configuration
 
-1. Configure your MCP client:
+1. Disable the IDE's default terminal tools
+![IDE tools configuration](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/tools_setup.png)
 
-	 - Clients like VSCode, Cursor, Trae: add the following to your configuration file (mcp.json):
+2. Configure your MCP client:
 
-	 ```json
-	{
-	  "mcpServers": {
-	    "vscode": {
-	      "command": "npx",
-	      "args": [
-	        "-y",
-	        "vsc-mcp",
-	        "--server-url",
-	        "http://localhost:PORT",
-	        "--enable",
-	        "execute_command",
-	        "--enable",
-	        "code_checker",
-	        "--enable",
-	        "get_terminal_output"
-	      ]
-	    }
-	  }
-	}
-	 ```
+Clients like VSCode, Cursor, Trae: add the following to your configuration file (mcp.json):
 
-2. Check the MCP server status in the bottom-left VSCode status bar:
+```json
+{
+  "mcpServers": {
+      "vscode": {
+        "command": "npx",
+        "args": [
+        "-y",
+        "vsc-mcp",
+        "--server-url",
+        "http://localhost:60100",
+        "--enable",
+        "execute_command",
+        "--enable",
+        "code_checker",
+        "--enable",
+        "get_terminal_output"
+        ]
+      }
+  }
+}
+```
 
-	 - (Server icon): Server is running
-	 - ∅: Click to start the server
+3. Check the MCP server status in the bottom-left VSCode status bar:
+
+- (Server icon): Server is running
+- ∅: Click to start the server
 
 ![Server status indicator](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/status_on.png)
+
+4. Recommended rules for AI agents:
+
+```markdown
+## Code Development
+- **After code editing**: Always check code using `mcp_vscode_code_checker` tool
+
+## Tools Priority
+- **Rule**: Always use ONLY `mcp_vscode_execute_command`, `mcp_vscode_get_terminal_output` instead of any other command line tool to perform tasks
+
+## Terminal Analysis
+- **CRITICAL**: MUST always read and analyze complete terminal output, not just exit code
+- **Forbidden**: Never make assumptions based solely on exit codes
+- **Required**: Always examine actual output text, error messages, warnings, and any other information displayed before providing response or next steps
+```
 
 ## Commands
 
