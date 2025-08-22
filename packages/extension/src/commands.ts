@@ -5,7 +5,6 @@ export interface ServerState {
   value: boolean;
 }
 
-// import { BidiHttpTransport } from './bidi-http-transport';
 import { SseHttpServer } from './sse-http-server';
 
 export function registerVSCodeCommands(

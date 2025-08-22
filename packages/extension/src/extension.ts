@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-// import { BidiHttpTransport } from './bidi-http-transport';
 import { SseHttpServer } from './sse-http-server';
 import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
