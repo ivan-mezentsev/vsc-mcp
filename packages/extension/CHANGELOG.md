@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 - 2025-08-22
+
+- fix(confirmation_ui): set cursor position in input box confirmation
+
 ## 0.1.1 - 2025-08-22
 
 - docs(extension): improve documentation

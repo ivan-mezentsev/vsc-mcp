@@ -31,6 +31,8 @@ export class ConfirmationUI {
     const inputBox = vscode.window.createInputBox();
     inputBox.title = message;
     inputBox.value = initialCommand;
+    // Place cursor at the start without selection
+    inputBox.valueSelection = [0, 0];
     inputBox.ignoreFocusOut = true;
 
     const approveButton: vscode.QuickInputButton = {
