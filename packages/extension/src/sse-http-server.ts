@@ -18,6 +18,8 @@ export class SseHttpServer {
   private httpServer?: http.Server;
   // Track active SSE transports by sessionId
   private transports: Record<string, SSEServerTransport> = {};
+  // Heartbeat timers per active session
+  private heartbeats: Record<string, NodeJS.Timeout> = {};
 
   public get serverStatus(): 'running' | 'stopped' | 'starting' | 'tool_list_updated' {
     return this.#serverStatus;
@@ -136,9 +138,33 @@ export class SseHttpServer {
       const transport = new SSEServerTransport('/messages', res);
       this.transports[transport.sessionId] = transport;
 
+      // Heartbeat to keep SSE alive through proxies/clients
+      try {
+        const timer = setInterval(() => {
+          try {
+            res.write(`: ping ${Date.now()}\n\n`);
+          } catch {
+            clearInterval(timer);
+          }
+        }, 25000);
+        this.heartbeats[transport.sessionId] = timer;
+      } catch { /* ignore */ }
+
       res.on('close', () => {
         delete this.transports[transport.sessionId];
+        const hb = this.heartbeats[transport.sessionId];
+        if (hb) {
+          clearInterval(hb);
+          delete this.heartbeats[transport.sessionId];
+        }
         this.outputChannel.appendLine(`SSE connection closed (sessionId: ${transport.sessionId})`);
+      });
+      res.on('error', () => {
+        const hb = this.heartbeats[transport.sessionId];
+        if (hb) {
+          clearInterval(hb);
+          delete this.heartbeats[transport.sessionId];
+        }
       });
 
       try {
@@ -154,18 +180,19 @@ export class SseHttpServer {
 
   // Client -> server JSON-RPC message intake (session-aware)
   // Provide parsed JSON body for the SDK handler
-  app.post('/messages', express.json(), async (req, res) => {
+  const handlePost = async (req: express.Request, res: express.Response) => {
       const sessionId = req.query.sessionId as string | undefined;
-      if (!sessionId) {
-        this.outputChannel.appendLine('Missing sessionId in /messages request');
-        res.status(400).send('Missing sessionId');
-        return;
-      }
-
-      const transport = this.transports[sessionId];
+      // Prefer explicit session; fallback to the only active one if unique
+      let transport = sessionId ? this.transports[sessionId] : undefined;
       if (!transport) {
-        this.outputChannel.appendLine(`No transport found for sessionId: ${sessionId}`);
-        res.status(400).send('No transport found for sessionId');
+        const ids = Object.keys(this.transports);
+        if (!sessionId && ids.length === 1) {
+          transport = this.transports[ids[0]];
+        }
+      }
+      if (!transport) {
+        this.outputChannel.appendLine(`No transport found for sessionId: ${sessionId ?? '<none>'}`);
+        res.status(400).send('No transport found for session');
         return;
       }
 
@@ -186,7 +213,13 @@ export class SseHttpServer {
           this.serverStatus = 'running';
         }
       } catch { /* ignore */ }
-    });
+    };
+
+    // Primary endpoint
+    app.post('/messages', express.json(), handlePost);
+    // Compatibility fallbacks
+    app.post('/sse', express.json(), handlePost);
+    app.post('/', express.json(), handlePost);
 
     // Start listening
     const startServer = (port: number): Promise<number> => {
@@ -194,6 +227,14 @@ export class SseHttpServer {
         const server = app.listen(port)
           .once('listening', () => {
             this.httpServer = server;
+            try {
+              // Avoid timing out long-lived SSE connections
+              server.requestTimeout = 0;
+              // In Node 18+, 0 disables; for typings, cast if needed
+              // @ts-ignore
+              server.headersTimeout = 0;
+              server.keepAliveTimeout = 120000;
+            } catch { /* ignore */ }
             this.outputChannel.appendLine(`MCP (SSE) HTTP server listening at :${port}`);
             resolve(port);
           })
