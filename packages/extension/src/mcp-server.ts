@@ -10,7 +10,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import packageJson from '../package.json';
 import { codeCheckerTool } from './tools/code_checker';
 import { executeCommandToolHandler } from './tools/execute_command';
-import { focusEditorTool } from './tools/focus_editor';
+import { focusEditorToolHandler } from './tools/focus_editor';
 import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
 
 export const extensionName = 'vscode-mcp-server';
@@ -289,8 +289,8 @@ function registerTools(mcpServer: ToolRegistry) {
     },
   );
 
-  // Register 'focus_editor' tool
-  mcpServer.tool(
+  // Register 'focus_editor' tool (RAW schema)
+  mcpServer.toolWithRawInputSchema(
     'focus_editor',
     dedent`
       Open the specified file in the VSCode editor and navigate to a specific line and column.
@@ -298,17 +298,33 @@ function registerTools(mcpServer: ToolRegistry) {
       Note: This tool operates on the editor visual environment so that the user can see the file. It does not return the file contents in the tool call result.
     `.trim(),
     {
-      filePath: z.string().describe('The absolute path to the file to focus in the editor.'),
-      line: z.number().int().min(0).default(0).describe('The line number to navigate to (default: 0).'),
-      column: z.number().int().min(0).default(0).describe('The column position to navigate to (default: 0).'),
-      startLine: z.number().int().min(0).optional().describe('The starting line number for highlighting.'),
-      startColumn: z.number().int().min(0).optional().describe('The starting column number for highlighting.'),
-      endLine: z.number().int().min(0).optional().describe('The ending line number for highlighting.'),
-      endColumn: z.number().int().min(0).optional().describe('The ending column number for highlighting.'),
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: 'The absolute path to the file to focus in the editor.' },
+        line: { type: 'number', description: 'The line number to navigate to (default: 0).' },
+        column: { type: 'number', description: 'The column position to navigate to (default: 0).' },
+        startLine: { type: 'number', description: 'The starting line number for highlighting.' },
+        startColumn: { type: 'number', description: 'The starting column number for highlighting.' },
+        endLine: { type: 'number', description: 'The ending line number for highlighting.' },
+        endColumn: { type: 'number', description: 'The ending column number for highlighting.' },
+      },
+      required: ['filePath'],
     },
-    async (params: { filePath: string; line?: number; column?: number }) => {
-      const result = await focusEditorTool(params);
-      return result;
+    async (params) => {
+      const p = (params ?? {}) as {
+        filePath: string;
+        line?: number;
+        column?: number;
+        startLine?: number;
+        startColumn?: number;
+        endLine?: number;
+        endColumn?: number;
+      };
+      const result = await focusEditorToolHandler(p as any);
+      return {
+        content: result.content.map(item => ({ ...item, type: 'text' as const })),
+        isError: result.isError,
+      };
     },
   );
 
