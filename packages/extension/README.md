@@ -24,11 +24,6 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 
 ![Multi-instance Switching](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/demo_Multi-instance_Switching.gif)
 
-### Relay Functionality
-
-- Returns the built-in tools defined in the relay's `initial_tools.ts`.
-- Proxies tool execution to the VSC-MCP extension at `--server-url`.
-
 ## Available Built-in Tools
 
 - **execute_command**: Execute commands in VSCode’s integrated terminal
@@ -48,21 +43,9 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
     ```json
     {
       "mcpServers": {
-          "vscode": {
-            "command": "npx",
-            "args": [
-            "-y",
-            "vsc-mcp",
-            "--server-url",
-            "http://localhost:60100",
-            "--enable",
-            "execute_command",
-            "--enable",
-            "code_checker",
-            "--enable",
-            "get_terminal_output"
-            ]
-          }
+        "vscode": {
+          "url": "http://localhost:60100/sse"
+        }
       }
     }
     ```

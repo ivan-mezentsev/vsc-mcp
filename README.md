@@ -4,8 +4,6 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 
 ## Local Build & Installation
 
-To build and install the extension and relay locally:
-
 ### Build the Extension
 
 ```bash
@@ -18,24 +16,6 @@ Install the packaged extension from disk:
 ```bash
 code --install-extension packages/extension/vsc-mcp-server-0.1.0.vsix
 ```
-
-### Build and Link Relay
-
-```bash
-cd packages/relay
-npm run build
-npm pack
-npm link
-```
-
-After linking, running via `npx` will use your local relay version.
-
-### Command Line Options
-
-- `--server-url`: Base URL of the MCP server (default: <http://localhost:60100>)
-- `--listen-port`: Starting port to listen for incoming JSON-RPC messages (default: 6011)
-- `--disable`: Disable specific tools from being displayed (e.g., `--disable focus_editor --disable code_checker`)
-- `--enable`: Enable only specific tools (whitelist mode) - when used, only specified tools will be available (e.g., `--enable execute_command --enable get_terminal_output`)
 
 ## Key Features
 
@@ -50,11 +30,6 @@ After linking, running via `npx` will use your local relay version.
 - Easily switch the MCP server between multiple open VSCode windows.(Just by clicking the status bar item)
 
 ![Multi-instance Switching](docs/demo_Multi-instance_Switching.gif)
-
-### Relay Functionality
-
-- Returns the built-in tools defined in the relay's `initial_tools.ts`.
-- Proxies tool execution to the VSC-MCP extension at `--server-url`.
 
 ## Available Built-in Tools
 
@@ -75,21 +50,9 @@ Clients like VSCode, Cursor, Trae: add the following to your configuration file 
 ```json
 {
   "mcpServers": {
-      "vscode": {
-        "command": "npx",
-        "args": [
-        "-y",
-        "vsc-mcp",
-        "--server-url",
-        "http://localhost:60100",
-        "--enable",
-        "execute_command",
-        "--enable",
-        "code_checker",
-        "--enable",
-        "get_terminal_output"
-        ]
-      }
+    "vscode": {
+      "url": "http://localhost:60100/sse"
+    }
   }
 }
 ```

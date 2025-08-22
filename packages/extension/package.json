@@ -15,8 +15,7 @@
     "server",
     "VSCode",
     "Terminal",
-    "tools",
-    "relay"
+    "tools"
   ],
   "files": [
     "dist/**",
