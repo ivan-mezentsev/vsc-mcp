@@ -53,10 +53,3 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           npm_config_user_agent: pnpm
         run: npx vsce publish --no-dependencies
-
-      - name: Upload packaged .vsix
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-vsix
-          path: packages/extension/*.vsix
