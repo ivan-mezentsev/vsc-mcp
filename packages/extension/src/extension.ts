@@ -9,7 +9,7 @@ let serverStatusBarItem: vscode.StatusBarItem;
 let sseServer: SseHttpServer;
 
 // ステータスバーを更新する関数
-function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'tool_list_updated') {
+function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
   if (!serverStatusBarItem) {
     return;
   }
@@ -24,11 +24,6 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'too
       serverStatusBarItem.text = '$(sync~spin) VSC MCP';
       serverStatusBarItem.tooltip = 'Starting...';
       serverStatusBarItem.command = undefined;
-      break;
-    case 'tool_list_updated':
-      // serverStatusBarItem.text = '$(warning) VSC MCP';
-      // serverStatusBarItem.tooltip = 'Tool list updated - Restart MCP Client';
-      // serverStatusBarItem.command = 'mcpServer.stopServer';
       break;
     case 'stopped':
     default:

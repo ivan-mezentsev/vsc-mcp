@@ -9,11 +9,11 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
  * HTTP server that exposes MCP over SSE:
  * - GET /sse: establish SSE stream (server -> client)
  * - POST /    : client -> server JSON-RPC message
- * - Hand-over endpoints retained: /ping, /request-handover, /notify-tools-updated
+ * - Hand-over endpoints retained: /ping, /request-handover
  */
 export class SseHttpServer {
-  onServerStatusChanged?: (status: 'running' | 'stopped' | 'starting' | 'tool_list_updated') => void;
-  #serverStatus: 'running' | 'stopped' | 'starting' | 'tool_list_updated' = 'stopped';
+  onServerStatusChanged?: (status: 'running' | 'stopped' | 'starting') => void;
+  #serverStatus: 'running' | 'stopped' | 'starting' = 'stopped';
 
   private httpServer?: http.Server;
   // Track active SSE transports by sessionId
@@ -21,11 +21,11 @@ export class SseHttpServer {
   // Heartbeat timers per active session
   private heartbeats: Record<string, NodeJS.Timeout> = {};
 
-  public get serverStatus(): 'running' | 'stopped' | 'starting' | 'tool_list_updated' {
+  public get serverStatus(): 'running' | 'stopped' | 'starting' {
     return this.#serverStatus;
   }
 
-  private set serverStatus(status: 'running' | 'stopped' | 'starting' | 'tool_list_updated') {
+  private set serverStatus(status: 'running' | 'stopped' | 'starting') {
     this.#serverStatus = status;
     this.onServerStatusChanged?.(status);
   }
@@ -113,13 +113,6 @@ export class SseHttpServer {
       void this.closeCurrentConnection();
       this.serverStatus = 'stopped';
       this.outputChannel.appendLine('Server is now not running due to handover request');
-    });
-
-    app.post('/notify-tools-updated', express.json(), (_req, res) => {
-      this.outputChannel.appendLine('Received tools updated notification');
-      vscode.window.showWarningMessage('The Tool List has been updated. Please restart the MCP Client (e.g., Claude Desktop) to notify it of the new Tool List. (For Claude Desktop, click the top hamburger menu -> File -> Exit.)');
-      this.serverStatus = 'tool_list_updated';
-      res.send({ success: true });
     });
 
     // SSE stream for server -> client
