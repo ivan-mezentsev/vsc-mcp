@@ -1,7 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
-import { CallToolRequestSchema, CallToolResult, ErrorCode, ListToolsRequestSchema, ListToolsResult, McpError, Tool, ServerRequest, ServerNotification } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, CallToolResult, ErrorCode, ListToolsRequestSchema, ListToolsResult, McpError, ServerNotification, ServerRequest, Tool } from '@modelcontextprotocol/sdk/types.js';
 import dedent from 'dedent';
 import * as vscode from 'vscode';
 import { DiagnosticSeverity } from 'vscode';
@@ -85,7 +85,7 @@ export class ToolRegistry {
     this.server.setRequestHandler(ListToolsRequestSchema, (): ListToolsResult => ({
       tools: Object.entries(this._registeredTools).map(([name, tool]): Tool => {
         let inputSchema: Tool['inputSchema'];
-        
+
         if (tool.inputSchema) {
           inputSchema = tool.inputSchema;
         } else if (tool.inputZodSchema) {
@@ -96,7 +96,7 @@ export class ToolRegistry {
         } else {
           inputSchema = { type: "object" } as Tool['inputSchema'];
         }
-        
+
         return {
           name,
           description: tool.description,
