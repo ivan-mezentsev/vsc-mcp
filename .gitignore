@@ -1,6 +1,6 @@
 *.d.ts
 *.vsix
-.vscode-test/**
+packages/extension/.vscode-test/**
 dist
 node_modules
 out

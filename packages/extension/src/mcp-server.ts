@@ -16,18 +16,7 @@ import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
 
-/**
- * Transform JSON Schema to draft 2020-12
- * This is needed because zod-to-json-schema generates draft-07 schemas
- */
-function toJsonSchema2020(schema: any): any {
-  return {
-    ...schema,
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    // Remove additionalProperties: false as it can cause issues with Claude Code
-    additionalProperties: undefined
-  };
-}
+// Note: tools registered with raw schemas are passed through as-is.
 
 interface RegisteredTool {
   description?: string;
@@ -103,9 +92,9 @@ export class ToolRegistry {
           const generatedSchema = zodToJsonSchema(tool.inputZodSchema, {
             strictUnions: true,
           });
-          inputSchema = toJsonSchema2020(generatedSchema) as Tool['inputSchema'];
+          inputSchema = generatedSchema as Tool['inputSchema'];
         } else {
-          inputSchema = toJsonSchema2020({ type: "object" }) as Tool['inputSchema'];
+          inputSchema = { type: "object" } as Tool['inputSchema'];
         }
         
         return {

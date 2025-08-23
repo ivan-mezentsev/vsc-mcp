@@ -54,7 +54,7 @@ suite('Get Terminal Output Tool Test Suite', function () {
     assert.strictEqual(userRejected, false, 'Command should not be user rejected');
 
     // Extract terminal ID from the response
-    const match = response.text.match(/terminal \(id: (\d+)\)/);
+    const match = response.text.match(/terminal \(id: "?(\d+)"?\)/);
     assert.ok(match, 'Response should contain terminal ID');
     testTerminalId = parseInt(match[1], 10);
 
