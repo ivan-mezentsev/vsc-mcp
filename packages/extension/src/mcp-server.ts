@@ -1,7 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
-import { CallToolRequestSchema, CallToolResult, ErrorCode, ListToolsRequestSchema, ListToolsResult, McpError, Tool, ServerRequest, ServerNotification } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, CallToolResult, ErrorCode, ListToolsRequestSchema, ListToolsResult, McpError, ServerNotification, ServerRequest, Tool } from '@modelcontextprotocol/sdk/types.js';
 import dedent from 'dedent';
 import * as vscode from 'vscode';
 import { DiagnosticSeverity } from 'vscode';
@@ -10,24 +10,13 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import packageJson from '../package.json';
 import { codeCheckerTool } from './tools/code_checker';
 import { executeCommandToolHandler } from './tools/execute_command';
-import { focusEditorTool } from './tools/focus_editor';
+import { focusEditorToolHandler } from './tools/focus_editor';
 import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
 
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
 
-/**
- * Transform JSON Schema to draft 2020-12
- * This is needed because zod-to-json-schema generates draft-07 schemas
- */
-function toJsonSchema2020(schema: any): any {
-  return {
-    ...schema,
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    // Remove additionalProperties: false as it can cause issues with Claude Code
-    additionalProperties: undefined
-  };
-}
+// Note: tools registered with raw schemas are passed through as-is.
 
 interface RegisteredTool {
   description?: string;
@@ -96,18 +85,18 @@ export class ToolRegistry {
     this.server.setRequestHandler(ListToolsRequestSchema, (): ListToolsResult => ({
       tools: Object.entries(this._registeredTools).map(([name, tool]): Tool => {
         let inputSchema: Tool['inputSchema'];
-        
+
         if (tool.inputSchema) {
           inputSchema = tool.inputSchema;
         } else if (tool.inputZodSchema) {
           const generatedSchema = zodToJsonSchema(tool.inputZodSchema, {
             strictUnions: true,
           });
-          inputSchema = toJsonSchema2020(generatedSchema) as Tool['inputSchema'];
+          inputSchema = generatedSchema as Tool['inputSchema'];
         } else {
-          inputSchema = toJsonSchema2020({ type: "object" }) as Tool['inputSchema'];
+          inputSchema = { type: "object" } as Tool['inputSchema'];
         }
-        
+
         return {
           name,
           description: tool.description,
@@ -289,8 +278,8 @@ function registerTools(mcpServer: ToolRegistry) {
     },
   );
 
-  // Register 'focus_editor' tool
-  mcpServer.tool(
+  // Register 'focus_editor' tool (RAW schema)
+  mcpServer.toolWithRawInputSchema(
     'focus_editor',
     dedent`
       Open the specified file in the VSCode editor and navigate to a specific line and column.
@@ -298,17 +287,33 @@ function registerTools(mcpServer: ToolRegistry) {
       Note: This tool operates on the editor visual environment so that the user can see the file. It does not return the file contents in the tool call result.
     `.trim(),
     {
-      filePath: z.string().describe('The absolute path to the file to focus in the editor.'),
-      line: z.number().int().min(0).default(0).describe('The line number to navigate to (default: 0).'),
-      column: z.number().int().min(0).default(0).describe('The column position to navigate to (default: 0).'),
-      startLine: z.number().int().min(0).optional().describe('The starting line number for highlighting.'),
-      startColumn: z.number().int().min(0).optional().describe('The starting column number for highlighting.'),
-      endLine: z.number().int().min(0).optional().describe('The ending line number for highlighting.'),
-      endColumn: z.number().int().min(0).optional().describe('The ending column number for highlighting.'),
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: 'The absolute path to the file to focus in the editor.' },
+        line: { type: 'number', description: 'The line number to navigate to (default: 0).' },
+        column: { type: 'number', description: 'The column position to navigate to (default: 0).' },
+        startLine: { type: 'number', description: 'The starting line number for highlighting.' },
+        startColumn: { type: 'number', description: 'The starting column number for highlighting.' },
+        endLine: { type: 'number', description: 'The ending line number for highlighting.' },
+        endColumn: { type: 'number', description: 'The ending column number for highlighting.' },
+      },
+      required: ['filePath'],
     },
-    async (params: { filePath: string; line?: number; column?: number }) => {
-      const result = await focusEditorTool(params);
-      return result;
+    async (params) => {
+      const p = (params ?? {}) as {
+        filePath: string;
+        line?: number;
+        column?: number;
+        startLine?: number;
+        startColumn?: number;
+        endLine?: number;
+        endColumn?: number;
+      };
+      const result = await focusEditorToolHandler(p as any);
+      return {
+        content: result.content.map(item => ({ ...item, type: 'text' as const })),
+        isError: result.isError,
+      };
     },
   );
 

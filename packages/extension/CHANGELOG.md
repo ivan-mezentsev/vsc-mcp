@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 - 2025-08-23
+
+- feat(transport): replace relay with direct-to-client SSE implementation
+- feat(sse-http-server): implement SSE server with heartbeat and session management
+- chore: remove relay package and related files
+
 ## 0.1.2 - 2025-08-22
 
 - fix(confirmation_ui): set cursor position in input box confirmation

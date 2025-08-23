@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
-import { BidiHttpTransport } from './bidi-http-transport';
+import { SseHttpServer } from './sse-http-server';
 import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
 
 // MCP Server のステータスを表示するステータスバーアイテム
 let serverStatusBarItem: vscode.StatusBarItem;
-let transport: BidiHttpTransport;
+let sseServer: SseHttpServer;
 
 // ステータスバーを更新する関数
-function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'tool_list_updated') {
+function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
   if (!serverStatusBarItem) {
     return;
   }
@@ -23,11 +23,6 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting' | 'too
       serverStatusBarItem.text = '$(sync~spin) VSC MCP';
       serverStatusBarItem.tooltip = 'Starting...';
       serverStatusBarItem.command = undefined;
-      break;
-    case 'tool_list_updated':
-      // serverStatusBarItem.text = '$(warning) VSC MCP';
-      // serverStatusBarItem.tooltip = 'Tool list updated - Restart MCP Client';
-      // serverStatusBarItem.command = 'mcpServer.stopServer';
       break;
     case 'stopped':
     default:
@@ -57,15 +52,13 @@ export const activate = async (context: vscode.ExtensionContext) => {
 
   // Server start function
   async function startServer(port: number) {
-    outputChannel.appendLine(`DEBUG: Starting VSC MCP on port ${port}...`);
-    transport = new BidiHttpTransport(port, outputChannel);
-    // サーバー状態変更のイベントハンドラを設定
-    transport.onServerStatusChanged = (status) => {
+    outputChannel.appendLine(`DEBUG: Starting VSC MCP (SSE) on port ${port}...`);
+    sseServer = new SseHttpServer(port, outputChannel, mcpServer);
+    sseServer.onServerStatusChanged = (status) => {
       updateServerStatusBar(status);
     };
-
-    await mcpServer.connect(transport); // connect calls transport.start().
-    updateServerStatusBar(transport.serverStatus);
+    await sseServer.start();
+    updateServerStatusBar(sseServer.serverStatus);
   }
 
   // Auto-start server based on configuration
@@ -82,7 +75,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
   }
 
   // Register VSCode commands
-  registerVSCodeCommands(context, mcpServer, outputChannel, startServer, transport);
+  registerVSCodeCommands(context, mcpServer, outputChannel, startServer, sseServer);
 
   outputChannel.appendLine(`${extensionDisplayName} activated.`);
 };

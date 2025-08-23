@@ -94,37 +94,6 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1(webpack@5.98.0)
 
-  packages/relay:
-    dependencies:
-      '@hono/node-server':
-        specifier: ^1.14.0
-        version: 1.14.0(hono@4.7.5)
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.8.0
-        version: 1.8.0
-      fs-extra:
-        specifier: ^11.3.0
-        version: 11.3.0
-      hono:
-        specifier: ^4.7.5
-        version: 4.7.5
-    devDependencies:
-      '@types/fs-extra':
-        specifier: ^11.0.4
-        version: 11.0.4
-      '@types/node':
-        specifier: ^22.14.0
-        version: 22.14.0
-      nock:
-        specifier: ^13.4.0
-        version: 13.5.6
-      tsx:
-        specifier: ^4.7.0
-        version: 4.19.3
-      typescript:
-        specifier: ^5.8.2
-        version: 5.8.2
-
 packages:
 
   '@azu/format-text@1.0.2':
