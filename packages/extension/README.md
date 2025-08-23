@@ -52,7 +52,7 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 
 3. Check the MCP server status in the bottom-left VSCode status bar:
 
-- (Server icon): Server is running
+- 🛠️: Server is running
 - ∅: Click to start the server
 
 ![Server status indicator](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/status_on.png)
@@ -84,13 +84,6 @@ A VSCode extension that exposes your IDE as an MCP server — compensating for m
 - `mcpServer.port` (number, default: 60100) — port of the MCP server
 - `mcpServer.confirmationUI` ("InputBox" | "statusBar", default: "InputBox") — UI for command confirmation
 - `mcpServer.confirmNonDestructiveCommands` (boolean, default: false) — ask confirmation even for non‑destructive commands
-
-### Command Line Options
-
-- `--server-url`: Base URL of the MCP server (default: <http://localhost:60100>)
-- `--listen-port`: Starting port to listen for incoming JSON-RPC messages (default: 6011)
-- `--disable`: Disable specific tools from being displayed (e.g., `--disable focus_editor --disable code_checker`)
-- `--enable`: Enable only specific tools (whitelist mode) - when used, only specified tools will be available (e.g., `--enable execute_command --enable get_terminal_output`)
 
 ## Attribution
 

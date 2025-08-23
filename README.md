@@ -59,7 +59,7 @@ Clients like VSCode, Cursor, Trae: add the following to your configuration file 
 
 3. Check the MCP server status in the bottom-left VSCode status bar:
 
-- (Server icon): Server is running
+- 🛠️: Server is running
 - ∅: Click to start the server
 
 ![Server status indicator](docs/status_on.png)
