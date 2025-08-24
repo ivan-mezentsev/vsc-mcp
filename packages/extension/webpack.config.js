@@ -45,11 +45,6 @@ const extensionConfig = {
     },
 };
 
-extensionConfig.ignoreWarnings = [
-    {
-        module: /express\//,
-        message: /the request of a dependency is an expression/,
-    },
-];
+// No special ignoreWarnings required
 
 export default [extensionConfig];

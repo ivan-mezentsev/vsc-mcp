@@ -50,21 +50,28 @@ export const activate = async (context: vscode.ExtensionContext) => {
   // Show initial state to ensure visibility even before server starts
   updateServerStatusBar('starting');
 
-  // Server start function
-  async function startServer(port: number) {
-    outputChannel.appendLine(`DEBUG: Starting VSC MCP (SSE) on port ${port}...`);
-    sseServer = new SseHttpServer(port, outputChannel, mcpServer);
-    sseServer.onServerStatusChanged = (status) => {
-      updateServerStatusBar(status);
-    };
+  // Resolve port and instantiate server once so handover works even if initial start fails
+  const mcpConfig = vscode.workspace.getConfiguration('mcpServer');
+  const port = mcpConfig.get<number>('port', 60100);
+  sseServer = new SseHttpServer(port, outputChannel, mcpServer);
+  sseServer.onServerStatusChanged = (status) => {
+    updateServerStatusBar(status);
+  };
+
+  // Server start function (reuses single instance)
+  async function startServer(p: number) {
+    if (p !== sseServer.listenPort) {
+      // If port changed, recreate server instance
+      sseServer = new SseHttpServer(p, outputChannel, mcpServer);
+      sseServer.onServerStatusChanged = (status) => updateServerStatusBar(status);
+    }
+    outputChannel.appendLine(`DEBUG: Starting VSC MCP (SSE) on port ${p}...`);
     await sseServer.start();
     updateServerStatusBar(sseServer.serverStatus);
   }
 
   // Auto-start server based on configuration
-  const mcpConfig = vscode.workspace.getConfiguration('mcpServer');
   const startOnActivate = mcpConfig.get<boolean>('startOnActivate', true);
-  const port = mcpConfig.get<number>('port', 60100);
   if (startOnActivate) {
     try {
       await startServer(port);
