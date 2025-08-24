@@ -1,0 +1,165 @@
+/* VS Code themed styles for ask-report webview. */
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0.75rem 0.75rem 0.75rem 0.75rem;
+  box-sizing: border-box;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.4;
+}
+
+/* Layout */
+.askreport__progress {
+  position: fixed; /* always at the very top of the viewport */
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px; /* much thinner */
+  background: transparent;
+  z-index: 10; /* above content; header starts at 6px so no overlap */
+}
+.askreport__progress-line {
+  height: 100%;
+  width: 100%;
+  background: var(--vscode-progressBar-background, var(--vscode-focusBorder));
+  transition: width 0.2s linear;
+}
+.askreport__header {
+  position: fixed; /* pin to viewport */
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  pointer-events: none; /* allow clicks through except on buttons */
+  z-index: 11; /* above content and progress line */
+}
+.askreport__main { display: block; }
+.askreport__footer { margin-top: 0.5rem; display: grid; gap: 0.4rem; }
+.spacer { flex: 1; }
+.timer { opacity: 0.8; font-size: 0.9em; }
+.timer {
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch; /* avoid layout shift when counting down */
+  text-align: right;
+}
+
+.options { border: none; padding: 0; margin: 0; }
+.actions { display: flex; gap: 0.5rem; justify-content: center; }
+
+/* Unified bottom dock that contains controls and actions */
+.askreport__dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.5rem 0.75rem; /* align with body horizontal padding */
+  background: var(--vscode-editor-background);
+  box-shadow: 0 -1px 0 0 var(--vscode-editorWidget-border);
+  z-index: 9;
+}
+.askreport__dock .actions { justify-content: center; gap: 8px; }
+
+.markdown {
+  /* Scrollable Markdown container */
+  overflow: auto;
+  /* reserve bottom area for fixed dock; add top padding for fixed header */
+  padding: 2.25rem 0.75rem calc(0.75rem + var(--askreport-dock-height, 128px)) 0.75rem;
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background, transparent);
+}
+
+.controls { display: grid; gap: 0.5rem; }
+
+.radio-group {
+  display: grid;
+  grid-auto-rows: min-content;
+  gap: 6px;
+}
+
+.radio-group label { display: block; cursor: pointer; }
+
+/* Extra safety: even without .radio-group layout, make labels block */
+.options label.radio { display: block; margin: 2px 0; }
+.options input[type="radio"] { margin: 0; }
+
+textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box; /* include padding + border in width to avoid overflow */
+  min-height: 5.5rem;
+  resize: vertical;
+  padding: 0.5rem 0.6rem;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-editorWidget-border));
+  border-radius: 6px;
+}
+
+/* Hidden by default, shown when Custom is active or no options */
+textarea { display: none; }
+
+button {
+  appearance: none;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  cursor: pointer;
+}
+
+button.secondary {
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  background: var(--vscode-button-secondaryBackground, transparent);
+  border-color: var(--vscode-button-secondaryBorder, var(--vscode-editorWidget-border));
+}
+
+/* Icon-only buttons in toolbar */
+.icon-btn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important; /* fully transparent background */
+  color: var(--vscode-foreground);
+  border-color: transparent !important;
+  pointer-events: auto; /* re-enable events for buttons inside header */
+}
+.icon-btn:hover { background: transparent !important; }
+.icon-btn:active { background: transparent !important; }
+.icon-btn svg { display: block; }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Focus & hover states for accessibility */
+button:hover {
+  filter: brightness(1.05);
+}
+
+button:focus-visible, textarea:focus-visible, input[type="radio"]:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* Basic markdown content styling (kept minimal) */
+.markdown h1, .markdown h2, .markdown h3 { margin: 0.8em 0 0.4em; }
+.markdown p { margin: 0.5em 0; }
+.markdown ul, .markdown ol { margin: 0.5em 0 0.5em 1.25em; }
+.markdown code { background: var(--vscode-textPreformat-background, rgba(127,127,127,0.15)); padding: 0.1em 0.25em; border-radius: 4px; }
+.markdown pre { background: var(--vscode-textPreformat-background, rgba(127,127,127,0.15)); padding: 0.6rem; border-radius: 6px; overflow: auto; }

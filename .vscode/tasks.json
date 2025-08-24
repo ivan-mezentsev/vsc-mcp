@@ -1,26 +1,45 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "watch",
-      "type": "npm",
-      "script": "watch",
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "custom",
-        "fileLocation": "absolute",
-        "pattern": {
-          "regexp": "a^"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": "^\\[webpack-cli\\] Compiler starting",
-          "endsPattern": "^webpack\\s+.*compiled successfully.*$"
-        }
-      },
-      "presentation": {
-        "clear": true
-      }
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "watch",
+			"type": "npm",
+			"script": "watch",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "custom",
+				"fileLocation": "absolute",
+				"pattern": {
+					"regexp": "a^"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^\\[webpack-cli\\] Compiler starting",
+					"endsPattern": "^webpack\\s+.*compiled successfully.*$"
+				}
+			},
+			"presentation": {
+				"clear": true
+			}
+		},
+		{
+			"label": "typecheck:ext",
+			"type": "shell",
+			"command": "pnpm -C packages/extension check-types",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "test:ext",
+			"type": "shell",
+			"command": "pnpm -C packages/extension test",
+			"isBackground": false,
+			"problemMatcher": [
+				"$mocha"
+			],
+			"group": "test"
+		}
+	]
 }

@@ -19,6 +19,18 @@ code --install-extension packages/extension/vsc-mcp-server-0.1.0.vsix
 
 ## Key Features
 
+### Ask Report "Human In The Loop"
+
+- Interactive webview to prompt the user with Markdown content and predefined options or custom input. Includes copy-to-clipboard, external links handling, submit/cancel actions, and a configurable countdown timer with pause/resume.
+
+![AskReport](docs/demo_AskReport.gif)
+
+Example of "Human In The Loop" mode in chat of Github Copilot:
+
+```text
+Can you check the docs and explain how the project works? #vscode
+```
+
 ### Terminal Operations
 
 - Execute commands within VSCode’s integrated terminal (supports background/foreground execution, and timeout settings).
@@ -37,6 +49,7 @@ code --install-extension packages/extension/vsc-mcp-server-0.1.0.vsix
 - **code_checker**: Retrieve current diagnostics for your code
 - **focus_editor**: Focus specific locations within files
 - **get_terminal_output**: Fetch output from a specified terminal
+- **ask_report**: Prompt the user via a webview using Markdown and optional predefined options.
 
 ## Configuration
 
@@ -45,24 +58,24 @@ code --install-extension packages/extension/vsc-mcp-server-0.1.0.vsix
 
 2. Configure your MCP client:
 
-Clients like VSCode, Cursor, Trae: add the following to your configuration file (mcp.json):
+    Clients like VSCode, Cursor, Trae: add the following to your configuration file (mcp.json):
 
-```json
-{
-  "mcpServers": {
-    "vscode": {
-      "url": "http://localhost:60100/sse"
+    ```json
+    {
+      "mcpServers": {
+        "vscode": {
+          "url": "http://localhost:60100/sse"
+        }
+      }
     }
-  }
-}
-```
+    ```
 
 3. Check the MCP server status in the bottom-left VSCode status bar:
 
-- 🛠️: Server is running
-- ∅: Click to start the server
+    - 🛠️: Server is running
+    - ∅: Click to start the server
 
-![Server status indicator](docs/status_on.png)
+    ![Server status indicator](docs/status_on.png)
 
 4. Recommended rules for AI agents:
 
@@ -77,8 +90,26 @@ Clients like VSCode, Cursor, Trae: add the following to your configuration file 
 - **CRITICAL**: MUST always read and analyze complete terminal output, not just exit code
 - **Forbidden**: Never make assumptions based solely on exit codes
 - **Required**: Always examine actual output text, error messages, warnings, and any other information displayed before providing response or next steps
+
+## Decision Making
+- **Ambiguous tasks**: ALWAYS clarify using `mcp_vscode_ask_report` tool
+- **Requires decisions**: ALWAYS clarify using `mcp_vscode_ask_report` tool
+
+## Code Development
+- **Final confirmation**: MUST ask user if all requirements from specification are completed using `mcp_vscode_ask_report` tool with work report
+
+## Final gate
+- Before ANY final answer (after actions/edits/checks), it is **MANDATORY** to call `mcp_vscode_ask_report` with a report on the work done and the option ["Yes, everything is OK"].
+- If the answer is not "Yes, everything is OK" — continue working until the comments are resolved and repeat every time `mcp_vscode_ask_report`.
+- There are no exceptions (including minor edits).
 ```
 
 ## Attribution
 
 This project is a fork of [acomagu/vscode-as-mcp-server](https://github.com/acomagu/vscode-as-mcp-server) by Yuki Ito. Original copyrights and third-party notices are retained under Apache-2.0. This distribution is maintained by [Ivan Mezentsev](https://github.com/ivan-mezentsev).
+
+## Third-Party Licenses
+
+This project includes a local copy of [marked.js](https://github.com/markedjs/marked) (`packages/extension/media/marked.min.js`) for Markdown parsing in the ask-report webview.
+
+- marked.js: MIT License — Copyright (c) 2018+, MarkedJS contributors

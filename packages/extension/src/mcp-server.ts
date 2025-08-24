@@ -8,6 +8,7 @@ import { DiagnosticSeverity } from 'vscode';
 import { AnyZodObject, z, ZodRawShape } from 'zod';
 import { zodToJsonSchema } from "zod-to-json-schema";
 import packageJson from '../package.json';
+import { askReport } from './tools/ask_report';
 import { codeCheckerTool } from './tools/code_checker';
 import { executeCommandToolHandler } from './tools/execute_command';
 import { focusEditorToolHandler } from './tools/focus_editor';
@@ -351,5 +352,48 @@ function registerTools(mcpServer: ToolRegistry) {
         isError: result.isError,
       };
     }
+  );
+
+  // Register the "ask_report" tool (RAW schema)
+  mcpServer.toolWithRawInputSchema(
+    'ask_report',
+    dedent`
+      Open a webview to ask for a user report/confirmation and return the decision.
+      Input schema matches the reference 'ask_user' exactly.
+    `.trim(),
+    {
+      type: 'object',
+      properties: {
+        projectName: { type: 'string', description: 'Identifies the context/project making the request' },
+        message: { type: 'string', description: 'The specific question/report for the user. Supports Markdown formatting.' },
+        predefinedOptions: { type: 'array', items: { type: 'string' }, description: 'Predefined options for the user to choose from (optional)' },
+      },
+      required: ['projectName', 'message'],
+    },
+    async (params): Promise<CallToolResult> => {
+      const p = (params ?? {}) as { projectName: string; message: string; predefinedOptions?: string[] };
+      const result = await askReport({
+        title: p.projectName,
+        markdown: p.message,
+        initialValue: '',
+        predefinedOptions: p.predefinedOptions,
+      });
+      // Align responses with reference project for timeout and cancel cases
+      let text: string;
+      if (result.timeout === true) {
+        text = 'User did not reply: Timeout occurred.';
+      } else if (result.decision === 'Cancel' && (!result.value || result.value.trim() === '')) {
+        text = 'User replied with empty input.';
+      } else {
+        // Keep Submit path informative
+        text = `User replied: ${result.value}`;
+      }
+      return {
+        content: [
+          { type: 'text', text },
+        ],
+        isError: false,
+      };
+    },
   );
 }

@@ -3,7 +3,7 @@
   "displayName": "VSC-MCP Server",
   "description": "A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.",
   "publisher": "ivan-mezentsev",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "commonjs",
   "icon": "icon.png",
   "categories": [
@@ -19,6 +19,7 @@
   ],
   "files": [
     "dist/**",
+    "media/**",
     "icon.png",
     "README.md",
     "CHANGELOG.md",
@@ -82,6 +83,13 @@
           "type": "boolean",
           "default": false,
           "description": "If true, even commands marked as non-destructive (modifySomething=false) will require user confirmation."
+        },
+        "mcpServer.askReportTimeoutSeconds": {
+          "type": "number",
+          "default": 600,
+          "minimum": 0,
+          "maximum": 360000,
+          "description": "Timeout in seconds for the ask-report webview. When > 0, the dialog shows a countdown and auto-cancels on expiration."
         }
       }
     }
