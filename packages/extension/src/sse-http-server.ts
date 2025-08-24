@@ -71,8 +71,7 @@ export class SseHttpServer {
 
       if (data.success) {
         this.outputChannel.appendLine('Handover request accepted');
-        // Wait until the HTTP server is fully closed to avoid EADDRINUSE
-        await this.waitForServerClose(5000);
+        // Start immediately, do not wait for remote close
         try {
           await this.start();
           this.outputChannel.appendLine('Server restarted after successful handover');
@@ -156,6 +155,11 @@ export class SseHttpServer {
       // GET /sse -> establish SSE stream
       if (req.method === 'GET' && url.pathname === '/sse') {
         this.outputChannel.appendLine('New SSE connection');
+        // Enforce single active client: close any existing transports first
+        try {
+          await this.closeCurrentConnection();
+          this.outputChannel.appendLine('Closed previous SSE transports due to new connection');
+        } catch { /* ignore */ }
         // Advertise absolute POST endpoint via headers
         try {
           const host = (req.headers['host'] ?? `localhost:${this.listenPort}`) as string;
@@ -196,6 +200,7 @@ export class SseHttpServer {
             clearInterval(hb);
             delete this.heartbeats[transport.sessionId];
           }
+          this.outputChannel.appendLine(`SSE connection error (sessionId: ${transport.sessionId})`);
         });
 
         try {
@@ -233,25 +238,104 @@ export class SseHttpServer {
         if (!transport && this.lastActiveSessionId) {
           transport = this.transports[this.lastActiveSessionId];
         }
+
+        // Special server-side fallback: promote POST /sse without sessionId to establish SSE stream
+        if (!transport && url.pathname === '/sse' && !sessionId) {
+          this.outputChannel.appendLine('Promoting POST /sse without sessionId to SSE stream');
+          // Advertise absolute POST endpoint via headers
+          try {
+            const host = (req.headers['host'] ?? `localhost:${this.listenPort}`) as string;
+            const absolutePostUrl = `http://${host}/messages`;
+            res.setHeader('Link', `<${absolutePostUrl}>; rel="mcp"; type="application/json"`);
+            res.setHeader('X-MCP-Post', absolutePostUrl);
+          } catch { /* ignore */ }
+
+          // Create SSE transport bound to this response; keep connection open
+          // Enforce single active client: close any previous transports
+          try {
+            await this.closeCurrentConnection();
+            this.outputChannel.appendLine('Closed previous SSE transports due to POST /sse promotion');
+          } catch { /* ignore */ }
+          const newTransport = new SSEServerTransport('/messages', res);
+          this.transports[newTransport.sessionId] = newTransport;
+          this.lastActiveSessionId = newTransport.sessionId;
+
+          // Heartbeat for this SSE stream
+          try {
+            const timer = setInterval(() => {
+              try {
+                res.write(`: ping ${Date.now()}\n\n`);
+              } catch {
+                clearInterval(timer);
+              }
+            }, 25000);
+            this.heartbeats[newTransport.sessionId] = timer;
+          } catch { /* ignore */ }
+
+          res.on('close', () => {
+            delete this.transports[newTransport.sessionId];
+            const hb = this.heartbeats[newTransport.sessionId];
+            if (hb) {
+              clearInterval(hb);
+              delete this.heartbeats[newTransport.sessionId];
+            }
+            this.outputChannel.appendLine(`SSE connection closed (sessionId: ${newTransport.sessionId})`);
+          });
+          res.on('error', () => {
+            const hb = this.heartbeats[newTransport.sessionId];
+            if (hb) {
+              clearInterval(hb);
+              delete this.heartbeats[newTransport.sessionId];
+            }
+            this.outputChannel.appendLine(`SSE connection error (sessionId: ${newTransport.sessionId})`);
+          });
+
+          try {
+            await this.mcpServer.connect(newTransport);
+            this.outputChannel.appendLine('MCP server connected to SSE transport (POST /sse)');
+            // If POST carried an initial JSON-RPC message, handle it as the first message
+            if (body && typeof body === 'object') {
+              try {
+                await newTransport.handleMessage(body as JSONRPCMessage);
+              } catch (e) {
+                const em = e instanceof Error ? e.message : String(e);
+                this.outputChannel.appendLine('Error handling initial POST body as message: ' + em);
+              }
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.outputChannel.appendLine('Failed to connect MCP server to SSE transport (POST /sse): ' + msg);
+            try { res.end(); } catch { /* ignore */ }
+            delete this.transports[newTransport.sessionId];
+          }
+          // Do not end the response: keep SSE stream open
+          return;
+        }
         if (!transport) {
           this.outputChannel.appendLine(`No transport found for sessionId: ${sessionId ?? '<none>'}`);
           if (sessionId) {
-            // Try to use currently active transport immediately if available
-            const active = this.lastActiveSessionId ? this.transports[this.lastActiveSessionId] : undefined;
-            if (active && body && typeof body === 'object') {
-              try {
-                await active.handleMessage(body as JSONRPCMessage);
-                res.statusCode = 200;
-                res.end();
-                return;
-              } catch { /* fall back to queue */ }
+            // Instruct client to re-establish SSE stream immediately
+            try {
+              const host = (req.headers['host'] ?? `localhost:${this.listenPort}`) as string;
+              const absolutePostUrl = `http://${host}/messages`;
+              res.statusCode = 303; // See Other — client should perform GET to Location
+              res.setHeader('Location', '/sse');
+              // Provide discovery headers similar to GET /sse
+              res.setHeader('Link', `<${absolutePostUrl}>; rel="mcp"; type="application/json"`);
+              res.setHeader('X-MCP-Post', absolutePostUrl);
+              // Queue the message so it can be processed right after SSE reconnects
+              if (body && typeof body === 'object') {
+                try { this.pendingMessages.push(body as JSONRPCMessage); } catch { /* ignore */ }
+              }
+              res.end();
+            } catch {
+              // Fallback: respond with 400 to avoid silent hangs
+              res.statusCode = 400;
+              res.setHeader('content-type', 'text/plain');
+              const text = 'No transport found for session';
+              res.setHeader('content-length', Buffer.byteLength(text));
+              res.end(text);
             }
-            // Otherwise queue for delivery after SSE connects
-            if (body && typeof body === 'object') {
-              try { this.pendingMessages.push(body as JSONRPCMessage); } catch { /* ignore */ }
-            }
-            res.statusCode = 200;
-            res.end();
           } else {
             // Without sessionId, fail fast to prevent long waits
             res.statusCode = 400;
@@ -333,8 +417,8 @@ export class SseHttpServer {
       this.httpServer.close();
       this.httpServer = undefined;
     }
-  // Explicit stop should fully close MCP server
-  try { await this.mcpServer.close(); } catch { /* ignore */ }
+    // Explicit stop should fully close MCP server
+    try { await this.mcpServer.close(); } catch { /* ignore */ }
   }
 
   private async closeCurrentConnection() {
@@ -345,7 +429,7 @@ export class SseHttpServer {
       delete this.transports[id];
     }
     this.lastActiveSessionId = undefined;
-  // Do NOT close the MCP server here to preserve tool registry/state across restarts
+    // Do NOT close the MCP server here to preserve tool registry/state across restarts
   }
 
   // Read and parse JSON body from Node http request
