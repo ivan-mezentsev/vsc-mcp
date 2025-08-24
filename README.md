@@ -17,6 +17,10 @@ Install the packaged extension from disk:
 code --install-extension packages/extension/vsc-mcp-server-0.1.0.vsix
 ```
 
+Install from the Visual Studio Marketplace
+
+[Visual Studio Marketplace — vsc-mcp-server](https://marketplace.visualstudio.com/items?itemName=ivan-mezentsev.vsc-mcp-server)
+
 ## Key Features
 
 ### Ask Report "Human In The Loop"
