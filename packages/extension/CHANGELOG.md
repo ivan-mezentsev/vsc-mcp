@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 - 2025-08-24
+
+- Introduced the `ask_report` tool to prompt users for input via a webview.
+
 ## 0.2.1 - 2025-08-23
 
 - docs(extension): update README
