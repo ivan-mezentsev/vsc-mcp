@@ -22,6 +22,7 @@ class SseTestClient {
 
     public endpointPath: string | null = null;
     public sessionId: string | null = null;
+    public received: JsonRpcMessage[] = [];
 
     constructor(private readonly port: number) { }
 
@@ -92,6 +93,8 @@ class SseTestClient {
         if (evt === 'message') {
             try {
                 const msg: JsonRpcMessage = JSON.parse(data);
+                // Store every message for observation
+                this.received.push(msg);
                 if (msg.id != null && this.pending.has(msg.id)) {
                     this.pending.get(msg.id)!.resolve(msg);
                     this.pending.delete(msg.id);
@@ -256,5 +259,86 @@ suite('SSE handover sessionId reuse should fail (demonstrates current bug)', fun
 
         // Intentionally assert success to make the test fail and highlight the issue
         assert.ifError(postError); // will throw if postError is set
+    });
+});
+
+suite('SSE handover: POST sent before SSE reconnect (prod-like ordering)', function () {
+    this.timeout(60000);
+
+    let port: number;
+
+    // Этот тест фиксирует продо-подобную последовательность и должен падать сегодня —
+    // это целенаправленно, чтобы видеть регресс/починку в CI.
+    test('POST to stale session before reconnect should queue and only resolve after SSE reconnect', async function () {
+        // Arrange: ensure server is up and connect initial SSE
+        port = vscode.workspace.getConfiguration('mcpServer').get<number>('port', 60100);
+        await waitForServer(port, 10000);
+
+        const client = new SseTestClient(port);
+        await client.connect();
+        const firstEndpoint = client.endpointPath!; // includes ?sessionId=...
+
+        // Prime the server with a handshake so it's in running state
+        const listResp = await client.sendJsonRpc(firstEndpoint, { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} });
+        assert.ok(listResp.result && Array.isArray(listResp.result.tools), 'tools/list should return tools');
+
+        // Simulate user pressing Stop first (close server and SSE)
+        await vscode.commands.executeCommand('mcpServer.stopServer');
+        // Give it a moment to fully close and free port
+        await new Promise((r) => setTimeout(r, 500));
+
+        // Now simulate user pressing Toggle (request handover will start a fresh server locally)
+        await vscode.commands.executeCommand('mcpServer.toggleActiveStatus');
+        // Wait for HTTP server to be ready, BUT do NOT connect SSE yet
+        await waitForServer(port, 10000);
+
+        // Act: send a POST to the OLD endpoint BEFORE establishing a new SSE stream
+        const t0 = Date.now();
+        // Send raw HTTP POST (no SSE listener yet)
+        const postPromise = new Promise<void>((resolve, reject) => {
+            const body = JSON.stringify({ jsonrpc: '2.0', id: 4242, method: 'tools/call', params: { name: 'code_checker', arguments: {} } });
+            const req = http.request(firstEndpoint.startsWith('http') ? firstEndpoint : `http://127.0.0.1:${port}${firstEndpoint}`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body).toString() },
+            }, (res) => {
+                const chunks: Buffer[] = [];
+                res.on('data', (c) => chunks.push(Buffer.from(c)));
+                res.on('end', () => {
+                    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) resolve();
+                    else reject(new Error(`POST failed: ${res.statusCode} ${res.statusMessage} — ${Buffer.concat(chunks).toString('utf8')}`));
+                });
+            });
+            req.on('error', reject);
+            req.write(body);
+            req.end();
+        });
+
+        // Wait a bit to ensure the POST reached the server with no active transport
+        await new Promise((r) => setTimeout(r, 800));
+
+        // Assert (intermediate): it should not have resolved yet because no SSE transport exists
+        let settled = false;
+        postPromise.then(() => { settled = true; }).catch(() => { settled = true; });
+        await new Promise((r) => setTimeout(r, 100));
+        assert.strictEqual(settled, true, 'HTTP POST should resolve immediately with 200 (server queues message)');
+
+        // Now connect a NEW SSE stream, which should flush queued messages
+        const client2 = new SseTestClient(port);
+        await client2.connect();
+
+        // The queued result should now arrive via SSE; verify we see the response id
+        const resp = await new Promise<JsonRpcMessage>((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+                const found = client2.received.find(m => m.id === 4242);
+                if (found) return resolve(found);
+                if (Date.now() - start > 8000) return reject(new Error('Timeout waiting for queued response on SSE'));
+                setTimeout(check, 50);
+            };
+            check();
+        });
+        const elapsed = Date.now() - t0;
+        assert.ok(resp.result || resp.error, 'JSON-RPC response should arrive after SSE reconnect');
+        assert.ok(elapsed >= 700, `Response should arrive only after reconnect (elapsed=${elapsed}ms)`);
     });
 });

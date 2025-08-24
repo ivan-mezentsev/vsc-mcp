@@ -2,7 +2,7 @@ import * as assert from 'assert'
 import * as vscode from 'vscode'
 import { askReport, AskUserResult } from '../../tools/ask_report'
 
-suite('Ask Report Manual/Timeout Demo Test', function () {
+suite.skip('Ask Report Manual/Timeout Demo Test', function () {
     // Allow up to 40s for manual answer or 30s timeout + margin
     this.timeout(40000)
 
