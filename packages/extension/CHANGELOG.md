@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2025-08-25
+
+- Remove express dependency
+
 ## 0.3.0 - 2025-08-24
 
 - Introduced the `ask_report` tool to prompt users for input via a webview.
