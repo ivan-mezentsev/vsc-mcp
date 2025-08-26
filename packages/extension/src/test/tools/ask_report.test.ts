@@ -194,4 +194,24 @@ suite('ask_report tool', () => {
         const r2 = await p2;
         assert.strictEqual(r2.value, 'B');
     });
+
+    test('9.9 save opens untitled markdown and shows it', async () => {
+        const fake = createFakePanel();
+        sandbox.stub(vscode.window, 'createWebviewPanel').returns(fake.panel as any);
+        sandbox.stub(vscode.extensions, 'getExtension').returns({ extensionUri: vscode.Uri.file('/') } as any);
+        sandbox.stub(vscode.workspace, 'getConfiguration').returns({ get: () => 0 } as any);
+
+        const openStub = sandbox.stub(vscode.workspace, 'openTextDocument').resolves({} as any);
+        const showStub = sandbox.stub(vscode.window, 'showTextDocument').resolves({} as any);
+
+        const p = askReport({ markdown: 'MD' });
+        fake.send({ type: 'save', text: 'MD' });
+        fake.send({ type: 'cancel' });
+        await p;
+
+        sinon.assert.calledOnce(openStub);
+        const arg = openStub.getCall(0).args[0];
+        assert.deepStrictEqual(arg, { language: 'markdown', content: 'MD' });
+        sinon.assert.calledOnce(showStub);
+    });
 });

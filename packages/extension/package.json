@@ -3,7 +3,7 @@
   "displayName": "VSC-MCP Server",
   "description": "A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.",
   "publisher": "ivan-mezentsev",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "commonjs",
   "icon": "icon.png",
   "categories": [

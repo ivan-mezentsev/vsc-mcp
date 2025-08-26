@@ -74,6 +74,7 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
         </div>
         <header class="askreport__header" role="toolbar" aria-label="Ask report toolbar">
             <button id="copyBtn" class="btn secondary icon-btn" aria-label="Copy content" title="Copy"></button>
+            <button id="saveBtn" class="btn secondary icon-btn" aria-label="Save" title="Save"></button>
             <div class="spacer"></div>
             <button id="pauseBtn" class="btn secondary icon-btn" aria-label="Pause timer" title="Pause"></button>
             <span id="timer" class="timer" aria-live="polite">0</span>
@@ -102,6 +103,7 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
             const el = {
                 markdown: document.getElementById('markdown'),
                 copyBtn: document.getElementById('copyBtn'),
+                saveBtn: document.getElementById('saveBtn'),
                 pauseBtn: document.getElementById('pauseBtn'),
                 timer: document.getElementById('timer'),
                 progress: document.getElementById('progressLine'),
@@ -127,6 +129,15 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                 el.copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">\
                         <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1z" fill="currentColor"/>\
                         <path d="M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h12v14z" fill="currentColor"/>\
+                    </svg>';
+            }
+            function setSaveIcon() {
+                if (!el.saveBtn) return;
+                // Floppy disk outline icon to match outline style
+                el.saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">\
+                        <path d="M5 3h12l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/>\
+                        <path d="M9 3h6v6H9V3z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/>\
+                        <path d="M7 21v-6h10v6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>\
                     </svg>';
             }
             function setPausePlayIcon() {
@@ -366,6 +377,11 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                 el.copyBtn.classList.add('active');
                 setTimeout(() => el.copyBtn.classList.remove('active'), 300);
             });
+            el.saveBtn.addEventListener('click', () => {
+                vscode.postMessage({ type: 'save', text: initData.markdown || '' });
+                el.saveBtn.classList.add('active');
+                setTimeout(() => el.saveBtn.classList.remove('active'), 300);
+            });
             el.pauseBtn.addEventListener('click', () => {
                 if (!initData.timeout || initData.timeout <= 0) return;
                 if (!paused) {
@@ -453,6 +469,7 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                 el.pauseBtn.setAttribute('aria-label', paused ? 'Resume timer' : 'Pause timer');
                 el.pauseBtn.setAttribute('title', paused ? 'Resume' : 'Pause');
                 setCopyIcon();
+                setSaveIcon();
                 setPausePlayIcon();
                 startTimer();
 
@@ -547,6 +564,16 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                             await vscode.env.clipboard.writeText(text)
                         } catch {
                             // ignore clipboard errors
+                        }
+                        return
+                    }
+                    case 'save': {
+                        const text = typeof msg.text === 'string' ? msg.text : ''
+                        try {
+                            const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content: text })
+                            await vscode.window.showTextDocument(doc)
+                        } catch {
+                            // ignore errors silently (no notifications)
                         }
                         return
                     }
