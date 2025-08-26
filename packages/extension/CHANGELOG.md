@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.3.2 - 2025-08-26
+
+- Introduced a new "Save" button in the ask report webview.
+
 ## 0.3.1 - 2025-08-25
 
-- Remove express dependency
+- Remove express dependency.
 
 ## 0.3.0 - 2025-08-24
 
