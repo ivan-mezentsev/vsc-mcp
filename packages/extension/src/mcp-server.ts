@@ -13,9 +13,26 @@ import { codeCheckerTool } from './tools/code_checker';
 import { executeCommandToolHandler } from './tools/execute_command';
 import { focusEditorToolHandler } from './tools/focus_editor';
 import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
+import { arePathsEqual, normalizePath } from './utils/path';
 
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
+
+// Global workspace folder path (normalized)
+let workspaceFolder: string | undefined;
+
+function validateWorkspaceFolderParam(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) {
+    return 'Parameter "workspaceFolder" is required and must be a non-empty string.';
+  }
+  if (!workspaceFolder) {
+    return 'Server has no active workspace folder.';
+  }
+  if (!arePathsEqual(value, workspaceFolder)) {
+    return `Invalid \"workspaceFolder\" value. Expected: ${workspaceFolder}`;
+  }
+  return null;
+}
 
 // Note: tools registered with raw schemas are passed through as-is.
 
@@ -172,6 +189,10 @@ export class ToolRegistry {
 }
 
 export function createMcpServer(_outputChannel: vscode.OutputChannel): McpServer {
+  // Initialize global workspace folder at server start
+  const wf = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  workspaceFolder = wf ? normalizePath(wf) : undefined;
+
   const mcpServer = new McpServer({
     name: extensionName,
     version: packageJson.version,
@@ -214,8 +235,9 @@ function registerTools(mcpServer: ToolRegistry) {
         modifySomething: { type: 'boolean', description: 'Flag indicating if the command is potentially destructive or modifying. Default is true.' },
         background: { type: 'boolean', description: 'Run command without waiting for completion. Default is false.' },
         timeout: { type: 'number', description: 'Timeout in milliseconds for reporting purposes. Default is 300000 (5 minutes).' },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['command'],
+      required: ['command', 'workspaceFolder'],
     },
     async (params) => {
       const p = (params ?? {}) as {
@@ -224,7 +246,16 @@ function registerTools(mcpServer: ToolRegistry) {
         modifySomething?: boolean;
         background?: boolean;
         timeout?: number;
+        workspaceFolder?: string;
       };
+
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
 
       const result = await executeCommandToolHandler({
         command: p.command,
@@ -260,10 +291,19 @@ function registerTools(mcpServer: ToolRegistry) {
           description: "Minimum severity level: 'Error', 'Warning', 'Information', or 'Hint' (default: 'Warning').",
           enum: ['Error', 'Warning', 'Information', 'Hint'],
         },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
+      required: ['workspaceFolder'],
     },
     async (params) => {
-      const p = (params ?? {}) as { severityLevel?: 'Error' | 'Warning' | 'Information' | 'Hint' };
+      const p = (params ?? {}) as { severityLevel?: 'Error' | 'Warning' | 'Information' | 'Hint'; workspaceFolder?: string };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const severityLevel = p.severityLevel && DiagnosticSeverity[p.severityLevel]
         ? DiagnosticSeverity[p.severityLevel]
         : DiagnosticSeverity.Warning;
@@ -297,8 +337,9 @@ function registerTools(mcpServer: ToolRegistry) {
         startColumn: { type: 'number', description: 'The starting column number for highlighting.' },
         endLine: { type: 'number', description: 'The ending line number for highlighting.' },
         endColumn: { type: 'number', description: 'The ending column number for highlighting.' },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['filePath'],
+      required: ['filePath', 'workspaceFolder'],
     },
     async (params) => {
       const p = (params ?? {}) as {
@@ -309,7 +350,15 @@ function registerTools(mcpServer: ToolRegistry) {
         startColumn?: number;
         endLine?: number;
         endColumn?: number;
+        workspaceFolder?: string;
       };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const result = await focusEditorToolHandler(p as any);
       return {
         content: result.content.map(item => ({ ...item, type: 'text' as const })),
@@ -338,11 +387,19 @@ function registerTools(mcpServer: ToolRegistry) {
           type: 'number',
           description: 'Maximum number of lines to retrieve (default: 1000)',
         },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['terminalId'],
+      required: ['terminalId', 'workspaceFolder'],
     },
     async (params) => {
-      const p = params as { terminalId: string; maxLines?: number };
+      const p = params as { terminalId: string; maxLines?: number; workspaceFolder?: string };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const result = await getTerminalOutputToolHandler({ terminalId: p.terminalId, maxLines: p.maxLines ?? 1000 });
       return {
         content: result.content.map(item => ({
@@ -367,11 +424,19 @@ function registerTools(mcpServer: ToolRegistry) {
         projectName: { type: 'string', description: 'Identifies the context/project making the request' },
         message: { type: 'string', description: 'The specific question/report for the user. Supports Markdown formatting.' },
         predefinedOptions: { type: 'array', items: { type: 'string' }, description: 'Predefined options for the user to choose from (optional)' },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['projectName', 'message'],
+      required: ['projectName', 'message', 'workspaceFolder'],
     },
     async (params): Promise<CallToolResult> => {
-      const p = (params ?? {}) as { projectName: string; message: string; predefinedOptions?: string[] };
+      const p = (params ?? {}) as { projectName: string; message: string; predefinedOptions?: string[]; workspaceFolder?: string };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const result = await askReport({
         title: p.projectName,
         markdown: p.message,
