@@ -12,7 +12,6 @@
 	"scripts": {
 		"build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/bin.js --banner:js='#!/usr/bin/env node'",
 		"dev": "tsx src/index.ts",
-		"pretest": "npm run build",
 		"test": "node jest-wrapper.cjs",
 		"test:watch": "node jest-wrapper.cjs --watch",
 		"lint": "eslint . && tsc --noEmit",
