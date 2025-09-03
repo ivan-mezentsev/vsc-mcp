@@ -18,6 +18,7 @@ export default [
 				process: "readonly",
 				__dirname: "readonly",
 				setTimeout: "readonly",
+				URL: "readonly",
 			},
 		},
 		plugins: {

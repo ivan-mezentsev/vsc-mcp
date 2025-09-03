@@ -24,7 +24,6 @@ function makePrinter(level: LogLevel, current: () => LogLevel): LoggerFn {
 			const ts = new Date().toISOString();
 			const line = `[${ts}] [${level}] ${msg}`;
 
-
 			console.error(line);
 		}
 	};
