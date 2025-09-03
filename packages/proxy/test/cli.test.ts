@@ -1,22 +1,26 @@
-/** Smoke test for CLI start without wiring (TypeScript + Jest) */
-// existing
+/** Smoke test for CLI bin presence and startup error path */
+import { describe, expect, it } from "@jest/globals";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 describe("vsc-mcp CLI", () => {
-	test("binary builds and runs with exit code 0", done => {
+	it("binary exists and prints diagnostic when backend down", done => {
 		const pkgRoot = path.resolve(__dirname, "..");
 		const distBin = path.join(pkgRoot, "dist", "bin.js");
 
 		if (!fs.existsSync(distBin)) {
-			return done.fail(
+			throw new Error(
 				"dist/bin.js is missing; run `npm run build` in packages/proxy before tests"
 			);
 		}
 
 		const child = spawn("node", [distBin], {
-			env: { ...process.env },
+			env: {
+				...process.env,
+				ROUTER_PORT: "59999",
+				PROXY_RETRY_LIMIT: "0",
+			},
 		});
 
 		let stderr = "";
@@ -25,8 +29,8 @@ describe("vsc-mcp CLI", () => {
 		});
 
 		child.on("close", code => {
-			expect(code).toBe(0);
-			expect(stderr).toContain("vsc-mcp: CLI stub is ready");
+			expect(code).toBe(1);
+			expect(stderr).toMatch(/startup failed:/);
 			done();
 		});
 	});

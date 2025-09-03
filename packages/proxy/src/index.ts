@@ -1,9 +1,10 @@
 /**
- * Minimal CLI entry for vsc-mcp
+ * CLI entry for vsc-mcp stdio proxy
  * - Validates Node version (>=18)
- * - Prints a single line to stderr and exits 0 (smoke run) when no IO is wired
+ * - Starts stdio <-> SSE proxy
  * Code comments in English only.
  */
+import { stdioMain } from "./stdioMain.js";
 
 const requiredMajor = 18;
 const nodeVersion = process.versions.node.split(".");
@@ -15,11 +16,4 @@ if (Number.isNaN(major) || major < requiredMajor) {
 	process.exit(1);
 }
 
-process.stderr.write(
-	"vsc-mcp: CLI stub is ready (stdio proxy not yet wired)\n"
-);
-
-// Keep process alive briefly so smoke tests can spawn/exit predictably
-setTimeout(() => {
-	process.exit(0);
-}, 0);
+void stdioMain();

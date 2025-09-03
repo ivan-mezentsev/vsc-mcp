@@ -33,6 +33,7 @@ export async function connectWithReconnects(
 		try {
 			const client = new Client({
 				name: "vsc-mcp",
+				version: "1.0.0",
 			});
 			const transport = new SSEClientTransport(baseUrl);
 			await client.connect(transport);
