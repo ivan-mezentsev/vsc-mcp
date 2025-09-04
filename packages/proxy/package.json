@@ -1,6 +1,6 @@
 {
 	"name": "vsc-mcp",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "Specialized stdio -> SSE proxy for the VSCode extension vsc-mcp-server",
 	"bin": {
 		"vsc-mcp": "dist/bin.js"

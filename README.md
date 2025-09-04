@@ -21,6 +21,20 @@ Install from the Visual Studio Marketplace
 
 [Visual Studio Marketplace — vsc-mcp-server](https://marketplace.visualstudio.com/items?itemName=ivan-mezentsev.vsc-mcp-server)
 
+### Build the proxy
+
+```bash
+cd packages/proxy
+npm run build
+```
+
+Install the built proxy from disk:
+
+```bash
+npm link
+```
+
+
 ## Key Features
 
 ### Ask Report "Human In The Loop"
@@ -40,12 +54,6 @@ Can you check the docs and explain how the project works? #vscode
 - Execute commands within VSCode’s integrated terminal (supports background/foreground execution, and timeout settings).
 
 ![InputBox](docs/demo_InputBox.gif)
-
-### Multi-instance Switching
-
-- Easily switch the MCP server between multiple open VSCode windows.(Just by clicking the status bar item)
-
-![Multi-instance Switching](docs/demo_Multi-instance_Switching.gif)
 
 ## Available Built-in Tools
 
@@ -68,16 +76,20 @@ Can you check the docs and explain how the project works? #vscode
     {
       "mcpServers": {
         "vscode": {
-          "url": "http://localhost:60100/sse"
+          "command": "npx",
+          "args": [
+            "vsc-mcp"
+          ],
+          "type": "stdio",
+          "env": {
+            "DISCOVERY_PORT": 60100
+          }
         }
       }
     }
     ```
 
 3. Check the MCP server status in the bottom-left VSCode status bar:
-
-    - 🛠️: Server is running
-    - ∅: Click to start the server
 
     ![Server status indicator](docs/status_on.png)
 

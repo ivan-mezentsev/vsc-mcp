@@ -2,14 +2,6 @@
 
 A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.
 
-## Features
-
-- Start/stop the built-in MCP server from VS Code
-- Execute commands in the integrated terminal and fetch output
-- Code diagnostics as a tool for MCP clients
-- Quick confirmation UI options: InputBox (editable), Status Bar buttons
-- Multi‑instance switching across VS Code windows
-
 ## Key Features
 
 ### Ask Report "Human In The Loop"
@@ -29,12 +21,6 @@ Can you check the docs and explain how the project works? #vscode
 - Execute commands within VSCode’s integrated terminal (supports background/foreground execution, and timeout settings).
 
 ![InputBox](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/demo_InputBox.gif)
-
-### Multi-instance Switching
-
-- Easily switch the MCP server between multiple open VSCode windows.(Just by clicking the status bar item)
-
-![Multi-instance Switching](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/demo_Multi-instance_Switching.gif)
 
 ## Available Built-in Tools
 
@@ -57,16 +43,20 @@ Can you check the docs and explain how the project works? #vscode
     {
       "mcpServers": {
         "vscode": {
-          "url": "http://localhost:60100/sse"
+          "command": "npx",
+          "args": [
+            "vsc-mcp"
+          ],
+          "type": "stdio",
+          "env": {
+            "DISCOVERY_PORT": 60100
+          }
         }
       }
     }
     ```
 
 3. Check the MCP server status in the bottom-left VSCode status bar:
-
-    - 🛠️: Server is running
-    - ∅: Click to start the server
 
     ![Server status indicator](https://github.com/ivan-mezentsev/vsc-mcp/raw/master/docs/status_on.png)
 
@@ -96,12 +86,6 @@ Can you check the docs and explain how the project works? #vscode
 - If the answer is not "Yes, everything is OK" — continue working until the comments are resolved and repeat every time `mcp_vscode_ask_report`.
 - There are no exceptions (including minor edits).
 ```
-
-## Commands
-
-- `MCP Server: Start Server`
-- `MCP Server: Stop Server`
-- `MCP Server: Toggle Active Status`
 
 ## Settings
 

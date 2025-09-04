@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0 - 2025-09-04
+
+- Introduced full multi-instance support with automatic discovery service and proxying via stdio service.
+
 ## 0.3.2 - 2025-08-26
 
 - Introduced a new "Save" button in the ask report webview.
