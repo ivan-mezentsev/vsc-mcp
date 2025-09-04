@@ -6,6 +6,8 @@
 		"vsc-mcp": "dist/bin.js"
 	},
 	"type": "module",
+	"main": "dist/bin.js",
+	"types": "dist/index.d.ts",
 	"engines": {
 		"node": ">=18"
 	},
@@ -16,10 +18,12 @@
 		"test:watch": "node jest-wrapper.cjs --watch",
 		"lint": "eslint . && tsc --noEmit",
 		"check": "eslint . && tsc --noEmit",
+		"typecheck": "tsc --noEmit",
 		"lint:fix": "eslint . --fix",
 		"cs": "prettier --check .",
 		"cs:fix": "prettier --write .",
-		"format": "npm run lint:fix && npm run cs:fix"
+		"format": "npm run lint:fix && npm run cs:fix",
+		"prepack": "npm run lint && npm run typecheck && npm run build"
 	},
 	"keywords": [
 		"mcp",
@@ -35,6 +39,11 @@
 	"bugs": {
 		"url": "https://github.com/ivan-mezentsev/vsc-mcp/issues"
 	},
+	"files": [
+		"dist/bin.js",
+		"README.md",
+		"LICENSE"
+	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.17.4",
 		"@typescript-eslint/eslint-plugin": "^8.42.0",
