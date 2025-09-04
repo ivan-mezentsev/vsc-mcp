@@ -16,6 +16,7 @@ export class SseHttpServer {
   #serverStatus: 'running' | 'stopped' | 'starting' = 'stopped';
 
   private httpServer?: http.Server;
+  private additionalServers: http.Server[] = [];
   private sockets = new Set<import('node:net').Socket>();
   private serverClosingPromise?: Promise<void>;
   private serverCloseResolve?: () => void;
@@ -494,6 +495,10 @@ export class SseHttpServer {
       try { clearInterval(this.registrationTimer); } catch { /* ignore */ }
       this.registrationTimer = undefined;
     }
+    // Close additional listeners
+    for (const srv of this.additionalServers.splice(0)) {
+      try { srv.close(); } catch { /* ignore */ }
+    }
     await this.closeCurrentConnection();
     if (this.httpServer) {
       this.outputChannel.appendLine('Closing SSE HTTP server');
@@ -531,6 +536,63 @@ export class SseHttpServer {
       });
       req.on('error', reject);
     });
+  }
+
+  // ======= Additional listening support =======
+  /**
+   * Try to additionally listen on a base port without restarting the main instance.
+   * Returns true on success, false if port is occupied or bind failed.
+   */
+  public async listenAdditionally(port: number): Promise<boolean> {
+    if (port === this.listenPort) {
+      return true; // already listening on this port as primary
+    }
+    // If already bound on this port, return
+    if (this.additionalServers.some((s) => (s.address() as any)?.port === port)) {
+      return true;
+    }
+    const server = http.createServer(this.httpServer?.listeners('request')[0] as any);
+    // mirror timeouts
+    server.requestTimeout = 0;
+    // @ts-ignore
+    server.headersTimeout = 0;
+    server.keepAliveTimeout = 120000;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', (err: NodeJS.ErrnoException) => {
+          server.removeAllListeners('listening');
+          reject(err);
+        });
+        server.once('listening', () => {
+          server.removeAllListeners('error');
+          this.additionalServers.push(server);
+          resolve();
+        });
+        server.listen(port);
+      });
+      this.outputChannel.appendLine(`MCP (SSE) added listening at :${port}`);
+      return true;
+    } catch (e) {
+      const err = e as NodeJS.ErrnoException;
+      if (err.code === 'EADDRINUSE') {
+        return false;
+      }
+      return false;
+    }
+  }
+
+  /** Lightweight /ping probe with timeout ms. */
+  public static async probePing(port: number, timeoutMs: number): Promise<boolean> {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), Math.max(1, timeoutMs));
+    try {
+      const res = await fetch(`http://localhost:${port}/ping`, { signal: controller.signal });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(t);
+    }
   }
 
 

@@ -84,6 +84,22 @@ export const activate = async (context: vscode.ExtensionContext) => {
     await sseServer.start();
     // Schedule periodic registration to base port (from config) every 60s
     sseServer.scheduleDiscoveryRegistration({ basePort: port, workspaceFolder });
+    // Probe base port every 60s; if not responsive within 0.5s, try to additionally listen on base port with small jitter
+    try {
+      const jitterMs = Math.floor(Math.random() * 200);
+      setInterval(async () => {
+        // skip if server not initialized
+        if (!sseServer) return;
+        const ok = await SseHttpServer.probePing(port, 500);
+        if (ok) return;
+        // small jitter to reduce thundering herd
+        await new Promise((r) => setTimeout(r, jitterMs));
+        const added = await sseServer.listenAdditionally(port);
+        if (added) {
+          outputChannel.appendLine(`VSC MCP additionally listening on base port ${port}.`);
+        }
+      }, 60_000);
+    } catch { /* silent */ }
     updateServerStatusBar(sseServer.serverStatus);
     // Only positive success log
     outputChannel.appendLine(`VSC MCP started on port ${chosenPort}.`);
