@@ -18,7 +18,7 @@ describe("vsc-mcp CLI", () => {
 		const child = spawn("node", [distBin], {
 			env: {
 				...process.env,
-				ROUTER_PORT: "59999",
+				DISCOVERY_PORT: "59999",
 				PROXY_RETRY_LIMIT: "0",
 			},
 		});

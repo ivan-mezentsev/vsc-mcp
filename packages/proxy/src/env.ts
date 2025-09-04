@@ -6,15 +6,15 @@ export type LogLevel = (typeof logLevels)[number];
 
 // Zod schema for environment
 const EnvSchema = z.object({
-	ROUTER_HOST: z.string().min(1).default("localhost"),
-	ROUTER_PORT: z.coerce.number().int().min(1).max(65535).default(60100),
-	ROUTER_PATH: z.string().startsWith("/").default("/sse"),
+	DISCOVERY_HOST: z.string().min(1).default("localhost"),
+	DISCOVERY_PORT: z.coerce.number().int().min(1).max(65535).default(60100),
+	DISCOVERY_PATH: z.string().startsWith("/").default("/sse"),
 	PROXY_RETRY_LIMIT: z.coerce.number().int().min(0).default(5),
 	PROXY_LOG_LEVEL: z.enum(logLevels).default("info"),
 });
 
 export type Env = z.infer<typeof EnvSchema> & {
-	ROUTER_PORT: number;
+	DISCOVERY_PORT: number;
 	PROXY_RETRY_LIMIT: number;
 };
 
@@ -27,9 +27,9 @@ export function readEnv(
 	// Copy only known keys to avoid accidental pollution
 	const raw = getEnv();
 	const input: Record<string, unknown> = {
-		ROUTER_HOST: raw.ROUTER_HOST,
-		ROUTER_PORT: raw.ROUTER_PORT,
-		ROUTER_PATH: raw.ROUTER_PATH,
+		DISCOVERY_HOST: raw.DISCOVERY_HOST,
+		DISCOVERY_PORT: raw.DISCOVERY_PORT,
+		DISCOVERY_PATH: raw.DISCOVERY_PATH,
 		PROXY_RETRY_LIMIT: raw.PROXY_RETRY_LIMIT,
 		PROXY_LOG_LEVEL: raw.PROXY_LOG_LEVEL,
 	};
@@ -47,8 +47,8 @@ export function readEnv(
 /** Build full SSE URL path from parts (no scheme/host). */
 export function buildSsePath(env: Env): string {
 	// Ensure single leading slash and no trailing slash for path
-	const path = env.ROUTER_PATH.startsWith("/")
-		? env.ROUTER_PATH
-		: `/${env.ROUTER_PATH}`;
+	const path = env.DISCOVERY_PATH.startsWith("/")
+		? env.DISCOVERY_PATH
+		: `/${env.DISCOVERY_PATH}`;
 	return path;
 }

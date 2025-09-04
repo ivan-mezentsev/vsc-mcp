@@ -15,7 +15,7 @@ function delay(ms: number): Promise<void> {
 function buildBaseUrl(env: Env): URL {
 	// Limit to configured host/port/path only for security
 	const url = new globalThis.URL(
-		`http://${env.ROUTER_HOST}:${env.ROUTER_PORT}${env.ROUTER_PATH}`
+		`http://${env.DISCOVERY_HOST}:${env.DISCOVERY_PORT}${env.DISCOVERY_PATH}`
 	);
 	return url;
 }

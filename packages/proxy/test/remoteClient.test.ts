@@ -19,9 +19,9 @@ describe("connectWithReconnects", () => {
 			})),
 		}));
 		const { connectWithReconnects } = await import("../src/remoteClient");
-		process.env.ROUTER_HOST = "localhost";
-		process.env.ROUTER_PORT = "60100";
-		process.env.ROUTER_PATH = "/sse";
+		process.env.DISCOVERY_HOST = "localhost";
+		process.env.DISCOVERY_PORT = "60100";
+		process.env.DISCOVERY_PATH = "/sse";
 		process.env.PROXY_RETRY_LIMIT = "1";
 
 		const env = readEnv();
@@ -39,9 +39,9 @@ describe("connectWithReconnects", () => {
 		}));
 		const { connectWithReconnects } = await import("../src/remoteClient");
 
-		process.env.ROUTER_HOST = "localhost";
-		process.env.ROUTER_PORT = "60100";
-		process.env.ROUTER_PATH = "/sse";
+		process.env.DISCOVERY_HOST = "localhost";
+		process.env.DISCOVERY_PORT = "60100";
+		process.env.DISCOVERY_PATH = "/sse";
 		process.env.PROXY_RETRY_LIMIT = "2"; // total 3 attempts
 
 		const env = readEnv();

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
 
 async function isBackendUp(): Promise<boolean> {
 	try {
@@ -66,7 +66,7 @@ describe("integration: stdio <-> SSE", () => {
 			args: [distBin],
 			env: {
 				...process.env,
-				ROUTER_PORT: "60100",
+				DISCOVERY_PORT: "60100",
 				PROXY_RETRY_LIMIT: "0",
 			},
 		});

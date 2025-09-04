@@ -15,7 +15,11 @@ it("CLI exits non-zero with single-line diagnostic when SSE is unavailable", don
 	}
 
 	const child = spawn("node", [distBin], {
-		env: { ...process.env, ROUTER_PORT: "59999", PROXY_RETRY_LIMIT: "0" },
+		env: {
+			...process.env,
+			DISCOVERY_PORT: "59999",
+			PROXY_RETRY_LIMIT: "0",
+		},
 	});
 
 	let stderr = "";
