@@ -17,19 +17,23 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
   switch (status) {
     case 'running':
       serverStatusBarItem.text = '$(tools) VSC MCP';
-      serverStatusBarItem.tooltip = 'VSC MCP is running';
-      serverStatusBarItem.command = 'mcpServer.stopServer';
+      serverStatusBarItem.tooltip = sseServer?.listenPort
+        ? `VSC MCP is running on port ${sseServer.listenPort}`
+        : 'VSC MCP is running';
+      serverStatusBarItem.command = undefined;
       break;
     case 'starting':
       serverStatusBarItem.text = '$(sync~spin) VSC MCP';
-      serverStatusBarItem.tooltip = 'Starting...';
+      serverStatusBarItem.tooltip = sseServer?.listenPort
+        ? `Starting on port ${sseServer.listenPort}...`
+        : 'Starting...';
       serverStatusBarItem.command = undefined;
       break;
     case 'stopped':
     default:
       serverStatusBarItem.text = '$(circle-slash) VSC MCP';
       serverStatusBarItem.tooltip = 'VSC MCP is not running';
-      serverStatusBarItem.command = 'mcpServer.toggleActiveStatus';
+      serverStatusBarItem.command = undefined;
       break;
   }
   serverStatusBarItem.show();

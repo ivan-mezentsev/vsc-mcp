@@ -51,10 +51,6 @@
       {
         "command": "mcpServer.startServer",
         "title": "MCP Server: Start Server"
-      },
-      {
-        "command": "mcpServer.toggleActiveStatus",
-        "title": "MCP Server: Toggle Active Status"
       }
     ],
     "configuration": {
