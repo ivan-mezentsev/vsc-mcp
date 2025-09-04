@@ -3,6 +3,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
 import * as vscode from 'vscode';
+import { arePathsEqual } from './utils/path';
 
 /**
  * HTTP server that exposes MCP over SSE:
@@ -107,6 +108,9 @@ export class SseHttpServer {
     // If a previous server exists, wait for it to close before starting
     await this.waitForServerClose(0).catch(() => { /* ignore */ });
 
+    // Ensure process-local discovery sweep timer is running
+    ensureDiscoverySweepTimer(this.outputChannel);
+
     // Create HTTP server with manual routing
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url || '/', `http://localhost:${this.listenPort}`);
@@ -131,6 +135,59 @@ export class SseHttpServer {
         };
         const text = JSON.stringify(response);
         res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('content-length', Buffer.byteLength(text));
+        res.end(text);
+        return;
+      }
+
+      // POST /register -> upsert discovery record and return full copy
+      if (req.method === 'POST' && url.pathname === '/register') {
+        // Lazy cleanup before handling
+        discoveryLazyCleanup();
+        const body = await this.readJsonBody(req).catch(() => undefined);
+        if (!isRegisterBody(body)) {
+          const text = JSON.stringify({ error: 'Invalid body. Expected { port: number, workspaceFolder: string }' });
+          res.statusCode = 400;
+          res.setHeader('content-type', 'application/json');
+          res.setHeader('content-length', Buffer.byteLength(text));
+          res.end(text);
+          return;
+        }
+        discoveryUpsert(body.port, body.workspaceFolder, Date.now());
+        const payload = { discovery: discoveryGetCopy() };
+        const text = JSON.stringify(payload);
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('content-length', Buffer.byteLength(text));
+        res.end(text);
+        return;
+      }
+
+      // GET /discovery?workspaceFolder=...
+      if (req.method === 'GET' && url.pathname === '/discovery') {
+        // Lazy cleanup before handling
+        discoveryLazyCleanup();
+        const wf = url.searchParams.get('workspaceFolder');
+        if (!wf) {
+          const text = JSON.stringify({ error: 'workspaceFolder is required' });
+          res.statusCode = 400;
+          res.setHeader('content-type', 'application/json');
+          res.setHeader('content-length', Buffer.byteLength(text));
+          res.end(text);
+          return;
+        }
+        const found = discoveryFindFirstByWorkspace(wf);
+        if (found) {
+          const text = JSON.stringify({ port: found.port });
+          res.statusCode = 200;
+          res.setHeader('content-type', 'application/json');
+          res.setHeader('content-length', Buffer.byteLength(text));
+          res.end(text);
+          return;
+        }
+        const text = JSON.stringify({ discovery: discoveryGetCopy() });
+        res.statusCode = 404;
         res.setHeader('content-type', 'application/json');
         res.setHeader('content-length', Buffer.byteLength(text));
         res.end(text);
@@ -537,4 +594,77 @@ export class SseHttpServer {
       }
     }
   }
+}
+
+// ======= DiscoveryStore (process-local) =======
+
+type DiscoveryRecord = {
+  port: number;
+  workspaceFolder: string; // stored as provided, not normalized
+  lastSeen: number; // unix ms
+};
+
+const DISCOVERY_TTL_MS = 120_000; // 120s
+const DISCOVERY_SWEEP_INTERVAL_MS = 60_000; // 60s
+
+const discoveryStore: DiscoveryRecord[] = [];
+let discoverySweepTimer: NodeJS.Timeout | undefined;
+
+function ensureDiscoverySweepTimer(output: vscode.OutputChannel | undefined): void {
+  if (discoverySweepTimer) return;
+  try {
+    discoverySweepTimer = setInterval(() => {
+      try {
+        discoveryRemoveExpired(Date.now());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        output?.appendLine(`[discovery] sweep error: ${msg}`);
+      }
+    }, DISCOVERY_SWEEP_INTERVAL_MS);
+  } catch { /* ignore */ }
+}
+
+function discoveryLazyCleanup(): void {
+  try { discoveryRemoveExpired(Date.now()); } catch { /* ignore */ }
+}
+
+function discoveryRemoveExpired(now: number): void {
+  for (let i = discoveryStore.length - 1; i >= 0; i--) {
+    const r = discoveryStore[i];
+    if (now - r.lastSeen > DISCOVERY_TTL_MS) {
+      discoveryStore.splice(i, 1);
+    }
+  }
+}
+
+function discoveryUpsert(port: number, workspaceFolder: string, now: number): void {
+  // unique by port; keep insertion order stable
+  const idx = discoveryStore.findIndex((r) => r.port === port);
+  if (idx >= 0) {
+    const rec = discoveryStore[idx];
+    rec.workspaceFolder = workspaceFolder;
+    rec.lastSeen = now;
+    return;
+  }
+  discoveryStore.push({ port, workspaceFolder, lastSeen: now });
+}
+
+function discoveryFindFirstByWorkspace(workspaceFolder: string): DiscoveryRecord | undefined {
+  for (const r of discoveryStore) {
+    if (arePathsEqual(r.workspaceFolder, workspaceFolder)) {
+      return r;
+    }
+  }
+  return undefined;
+}
+
+function discoveryGetCopy(): DiscoveryRecord[] {
+  return discoveryStore.map((r) => ({ ...r }));
+}
+
+function isRegisterBody(v: unknown): v is { port: number; workspaceFolder: string } {
+  if (!v || typeof v !== 'object') return false;
+  const port = (v as Record<string, unknown>).port;
+  const wf = (v as Record<string, unknown>).workspaceFolder;
+  return typeof port === 'number' && Number.isFinite(port) && port > 0 && typeof wf === 'string' && wf.length > 0;
 }
