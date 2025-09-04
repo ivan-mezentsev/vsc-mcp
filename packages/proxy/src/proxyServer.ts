@@ -98,16 +98,52 @@ export async function createProxyServer(remote: RemoteApi): Promise<Server> {
 		const result = await remote.listTools(req.params);
 		return result as ServerResult;
 	});
-	server.setRequestHandler(CallToolRequestSchema, async req => {
+	server.setRequestHandler(CallToolRequestSchema, async (req, _extra) => {
+		// Unconditional debug logs to stderr for end-to-end tracing
+		const now = () => new Date().toISOString();
+		const short = (v: unknown): string => {
+			try {
+				const s = JSON.stringify(v);
+				return s.length > 400 ? s.slice(0, 400) + "…" : s;
+			} catch {
+				return String(v);
+			}
+		};
+		const reqId = (() => {
+			const maybe = (req as unknown as { id?: unknown }).id;
+			return typeof maybe === "string" || typeof maybe === "number"
+				? String(maybe)
+				: "<no-id>";
+		})();
+		const toolName = (() => {
+			const name = (req as unknown as { params?: { name?: unknown } })
+				.params?.name;
+			return typeof name === "string" ? name : "<unknown>";
+		})();
+		console.error(
+			`[proxy] ${now()} stdio->proxy CALL_TOOL received id=${reqId} name=${toolName} args=${short((req as unknown as { params?: { arguments?: unknown } }).params?.arguments)}`
+		);
 		try {
+			console.error(
+				`[proxy] ${now()} proxy->SSE CALL_TOOL forwarding id=${reqId} name=${toolName}`
+			);
 			const result = await remote.callTool(
 				req.params,
 				CompatibilityCallToolResultSchema
+			);
+			console.error(
+				`[proxy] ${now()} SSE->proxy CALL_TOOL result id=${reqId} name=${toolName} isError=${(result as { isError?: boolean }).isError === true}`
+			);
+			console.error(
+				`[proxy] ${now()} proxy->stdio CALL_TOOL responding id=${reqId} name=${toolName}`
 			);
 			return result as ServerResult;
 		} catch (e) {
 			// Convert tool-side exception to tool error result per Python reference
 			const message = (e as Error).message;
+			console.error(
+				`[proxy] ${now()} SSE->proxy CALL_TOOL ERROR id=${reqId} name=${toolName} message=${short(message)}`
+			);
 			return {
 				content: [{ type: "text", text: message }],
 				isError: true,

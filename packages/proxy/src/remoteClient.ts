@@ -31,6 +31,7 @@ export async function connectWithReconnects(
 	let lastErr: Error | undefined;
 	while (attempt <= maxAttempts) {
 		try {
+			logger.debug(`attempting SSE connect to ${baseUrl.toString()}`);
 			const client = new Client({
 				name: "vsc-mcp",
 				version: "1.0.0",
@@ -47,6 +48,9 @@ export async function connectWithReconnects(
 					} catch {
 						// swallow close errors
 					}
+					logger.info(
+						`Disconnected from SSE at ${baseUrl.toString()}`
+					);
 				},
 			};
 		} catch (_e) {

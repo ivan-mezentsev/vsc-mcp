@@ -231,6 +231,17 @@ export class SseHttpServer {
       if (req.method === 'POST' && (url.pathname === '/messages' || url.pathname === '/sse' || url.pathname === '/')) {
         // parse body (JSON)
         const body = await this.readJsonBody(req).catch(() => undefined);
+        const now = () => new Date().toISOString();
+        const msgId = (() => {
+          try {
+            const id = (body as any)?.id;
+            return typeof id === 'string' || typeof id === 'number' ? String(id) : '<no-id>';
+          } catch { return '<no-id>'; }
+        })();
+        const method = (() => {
+          try { return (body as any)?.method ?? '<unknown>'; } catch { return '<unknown>'; }
+        })();
+        console.error(`[sse-http] ${now()} proxy->ext POST ${url.pathname} method=${method} id=${msgId}`);
         const sessionId = url.searchParams.get('sessionId') || undefined;
 
         // Select transport: explicit session -> matching; else if not found -> fallback to lastActive
@@ -293,10 +304,13 @@ export class SseHttpServer {
           try {
             await this.mcpServer.connect(newTransport);
             this.outputChannel.appendLine('MCP server connected to SSE transport (POST /sse)');
+            console.error(`[sse-http] ${now()} ext SSE transport connected via POST /sse sessionId=${newTransport.sessionId}`);
             // If POST carried an initial JSON-RPC message, handle it as the first message
             if (body && typeof body === 'object') {
               try {
+                console.error(`[sse-http] ${now()} ext handling initial POST body as message id=${msgId} method=${method}`);
                 await newTransport.handleMessage(body as JSONRPCMessage);
+                console.error(`[sse-http] ${now()} ext handled initial POST body id=${msgId}`);
               } catch (e) {
                 const em = e instanceof Error ? e.message : String(e);
                 this.outputChannel.appendLine('Error handling initial POST body as message: ' + em);
@@ -348,10 +362,13 @@ export class SseHttpServer {
         }
 
         try {
+          console.error(`[sse-http] ${now()} ext handling POST message id=${msgId} method=${method} sessionId=${transport.sessionId}`);
           await transport.handlePostMessage(req as any, res, body);
+          console.error(`[sse-http] ${now()} ext handled POST message id=${msgId}`);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           this.outputChannel.appendLine('Error handling POST message: ' + msg);
+          console.error(`[sse-http] ${now()} ext ERROR handling POST id=${msgId} message=${msg}`);
           res.statusCode = 500;
           res.setHeader('content-type', 'text/plain');
           res.end('Internal Server Error');

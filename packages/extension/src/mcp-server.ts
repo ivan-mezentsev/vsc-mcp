@@ -126,8 +126,25 @@ export class ToolRegistry {
     this.server.setRequestHandler(
       CallToolRequestSchema,
       async (request, extra): Promise<CallToolResult> => {
+        // Unconditional stderr logs for debugging tool calls end-to-end
+        const now = () => new Date().toISOString();
+        const reqId = (() => {
+          const maybe = (request as unknown as { id?: unknown }).id;
+          return typeof maybe === 'string' || typeof maybe === 'number' ? String(maybe) : '<no-id>';
+        })();
+        const toolName = request.params.name ?? '<unknown>';
+        const short = (v: unknown): string => {
+          try {
+            const s = JSON.stringify(v);
+            return s.length > 400 ? s.slice(0, 400) + '…' : s;
+          } catch {
+            return String(v);
+          }
+        };
+        console.error(`[ext] ${now()} SSE->ext CALL_TOOL received id=${reqId} name=${toolName} args=${short(request.params.arguments)}`);
         const tool = this._registeredTools[request.params.name];
         if (!tool) {
+          console.error(`[ext] ${now()} ext CALL_TOOL not-found id=${reqId} name=${toolName}`);
           throw new McpError(
             ErrorCode.InvalidParams,
             `Tool ${request.params.name} not found`,
@@ -138,12 +155,16 @@ export class ToolRegistry {
           // Skip validation because raw inputschema tool is used by another tool provider
           const args = request.params.arguments;
           const cb = tool.callback as (args: unknown, extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => ReturnType<ToolCallback<any>>;
-          return await Promise.resolve(cb(args, extra));
+          console.error(`[ext] ${now()} ext->tool CALL_TOOL invoking id=${reqId} name=${toolName} (raw)`);
+          const r = await Promise.resolve(cb(args, extra));
+          console.error(`[ext] ${now()} tool->ext CALL_TOOL result id=${reqId} name=${toolName} isError=${(r as { isError?: boolean }).isError === true}`);
+          return r;
         } else if (tool.inputZodSchema) {
           const parseResult = await tool.inputZodSchema.safeParseAsync(
             request.params.arguments,
           );
           if (!parseResult.success) {
+            console.error(`[ext] ${now()} ext CALL_TOOL invalid-args id=${reqId} name=${toolName} err=${parseResult.error.message}`);
             throw new McpError(
               ErrorCode.InvalidParams,
               `Invalid arguments for tool ${request.params.name}: ${parseResult.error.message}`,
@@ -153,8 +174,12 @@ export class ToolRegistry {
           const args = parseResult.data;
           const cb = tool.callback as ToolCallback<ZodRawShape>;
           try {
-            return await Promise.resolve(cb(args, extra));
+            console.error(`[ext] ${now()} ext->tool CALL_TOOL invoking id=${reqId} name=${toolName}`);
+            const r = await Promise.resolve(cb(args, extra));
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL result id=${reqId} name=${toolName} isError=${(r as { isError?: boolean }).isError === true}`);
+            return r;
           } catch (error) {
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL ERROR id=${reqId} name=${toolName} message=${error instanceof Error ? error.message : String(error)}`);
             return {
               content: [
                 {
@@ -168,8 +193,12 @@ export class ToolRegistry {
         } else {
           const cb = tool.callback as ToolCallback<undefined>;
           try {
-            return await Promise.resolve(cb(extra));
+            console.error(`[ext] ${now()} ext->tool CALL_TOOL invoking id=${reqId} name=${toolName} (no-args)`);
+            const r = await Promise.resolve(cb(extra));
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL result id=${reqId} name=${toolName} isError=${(r as { isError?: boolean }).isError === true}`);
+            return r;
           } catch (error) {
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL ERROR id=${reqId} name=${toolName} message=${error instanceof Error ? error.message : String(error)}`);
             return {
               content: [
                 {
