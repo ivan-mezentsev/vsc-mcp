@@ -23,7 +23,8 @@
 		"cs": "prettier --check .",
 		"cs:fix": "prettier --write .",
 		"format": "npm run lint:fix && npm run cs:fix",
-		"prepack": "npm run lint && npm run typecheck && npm run build"
+		"prepack": "node -e \"const fs=require('fs');const path=require('path');const dst=path.resolve('README.md');const src=path.resolve(__dirname,'..','..','README.md');if(!fs.existsSync(dst)){fs.copyFileSync(src,dst);fs.writeFileSync('.readme.tmp','1');}\" && npm run lint && npm run typecheck && npm run build",
+		"postpack": "node -e \"const fs=require('fs');if(fs.existsSync('.readme.tmp')){try{fs.unlinkSync('README.md');}catch(e){};try{fs.unlinkSync('.readme.tmp');}catch(e){};}\""
 	},
 	"keywords": [
 		"mcp",
