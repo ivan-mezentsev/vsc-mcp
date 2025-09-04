@@ -27,6 +27,10 @@ export class SseHttpServer {
   private heartbeats: Record<string, NodeJS.Timeout> = {};
   // Queue for messages received before an SSE transport is available (after restart)
   private pendingMessages: JSONRPCMessage[] = [];
+  // Periodic discovery registration timer
+  private registrationTimer: NodeJS.Timeout | undefined;
+  private registrationBasePort: number | undefined;
+  private registrationWorkspaceFolder: string | undefined;
 
   public get serverStatus(): 'running' | 'stopped' | 'starting' {
     return this.#serverStatus;
@@ -485,6 +489,11 @@ export class SseHttpServer {
 
   async close(): Promise<void> {
     this.serverStatus = 'stopped';
+    // Stop registration timer
+    if (this.registrationTimer) {
+      try { clearInterval(this.registrationTimer); } catch { /* ignore */ }
+      this.registrationTimer = undefined;
+    }
     await this.closeCurrentConnection();
     if (this.httpServer) {
       this.outputChannel.appendLine('Closing SSE HTTP server');
@@ -594,6 +603,49 @@ export class SseHttpServer {
       }
     }
   }
+
+  // ======= Discovery registration (periodic) =======
+  /**
+   * Schedule periodic POST /register against the basePort and sync local discovery copy.
+   * Performs an immediate registration once and then every intervalMs.
+   */
+  public scheduleDiscoveryRegistration(opts: RegistrationOptions): void {
+    const intervalMs = Math.max(1000, opts.intervalMs ?? 60_000);
+    this.registrationBasePort = opts.basePort;
+    this.registrationWorkspaceFolder = opts.workspaceFolder;
+    const makeBody = () => ({ port: this.listenPort, workspaceFolder: this.registrationWorkspaceFolder! });
+
+    const doRegister = async () => {
+      try {
+        // Lazy cleanup of our local store before merging remote
+        discoveryLazyCleanup();
+        const res = await fetch(`http://localhost:${this.registrationBasePort}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(makeBody()),
+        });
+        if (!res.ok) return; // silent per requirements
+        const json = await res.json() as { discovery?: unknown };
+        const copy = json?.discovery;
+        if (isDiscoveryArray(copy)) {
+          discoveryReplaceAll(copy);
+        }
+      } catch {
+        // Silent failure by design
+      }
+    };
+
+    // Clear previous interval if any
+    if (this.registrationTimer) {
+      try { clearInterval(this.registrationTimer); } catch { /* ignore */ }
+      this.registrationTimer = undefined;
+    }
+    // Fire immediately and then schedule
+    void doRegister();
+    try {
+      this.registrationTimer = setInterval(() => { void doRegister(); }, intervalMs);
+    } catch { /* ignore */ }
+  }
 }
 
 // ======= DiscoveryStore (process-local) =======
@@ -667,4 +719,35 @@ function isRegisterBody(v: unknown): v is { port: number; workspaceFolder: strin
   const port = (v as Record<string, unknown>).port;
   const wf = (v as Record<string, unknown>).workspaceFolder;
   return typeof port === 'number' && Number.isFinite(port) && port > 0 && typeof wf === 'string' && wf.length > 0;
+}
+
+function isDiscoveryArray(v: unknown): v is DiscoveryRecord[] {
+  if (!Array.isArray(v)) return false;
+  return v.every((r) => r && typeof r === 'object'
+    && typeof (r as any).port === 'number'
+    && Number.isFinite((r as any).port)
+    && (r as any).port > 0
+    && typeof (r as any).workspaceFolder === 'string'
+    && typeof (r as any).lastSeen === 'number');
+}
+
+function discoveryReplaceAll(copy: DiscoveryRecord[]): void {
+  // Replace the local store contents preserving array instance identity is not required
+  discoveryStore.length = 0;
+  const now = Date.now();
+  for (const r of copy) {
+    // Clamp lastSeen forward if too old (keeps TTL semantics sane)
+    const lastSeen = typeof r.lastSeen === 'number' ? r.lastSeen : now;
+    discoveryStore.push({ port: r.port, workspaceFolder: r.workspaceFolder, lastSeen });
+  }
+  // Drop any expired immediately
+  discoveryRemoveExpired(Date.now());
+}
+
+// ======= Discovery registration (periodic) =======
+
+export interface RegistrationOptions {
+  basePort: number;
+  workspaceFolder: string;
+  intervalMs?: number; // default 60s
 }

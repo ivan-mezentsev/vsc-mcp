@@ -1,8 +1,8 @@
-import * as vscode from 'vscode';
 import * as net from 'node:net';
-import { SseHttpServer } from './sse-http-server';
+import * as vscode from 'vscode';
 import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
+import { SseHttpServer } from './sse-http-server';
 
 // MCP Server のステータスを表示するステータスバーアイテム
 let serverStatusBarItem: vscode.StatusBarItem;
@@ -54,7 +54,8 @@ export const activate = async (context: vscode.ExtensionContext) => {
   // Resolve port from configuration
   const mcpConfig = vscode.workspace.getConfiguration('mcpServer');
   const port = mcpConfig.get<number>('port', 60100);
-  
+  const workspaceFolder = (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0]?.uri.fsPath) || process.cwd();
+
   // Quiet probe for the first free port starting at desiredPort
   async function findAvailablePort(desiredPort: number, maxSteps = 100): Promise<number> {
     for (let p = desiredPort, i = 0; i <= maxSteps && p <= 65535; i++, p++) {
@@ -81,6 +82,8 @@ export const activate = async (context: vscode.ExtensionContext) => {
     sseServer = new SseHttpServer(chosenPort, outputChannel, mcpServer);
     sseServer.onServerStatusChanged = (status) => updateServerStatusBar(status);
     await sseServer.start();
+    // Schedule periodic registration to base port (from config) every 60s
+    sseServer.scheduleDiscoveryRegistration({ basePort: port, workspaceFolder });
     updateServerStatusBar(sseServer.serverStatus);
     // Only positive success log
     outputChannel.appendLine(`VSC MCP started on port ${chosenPort}.`);
