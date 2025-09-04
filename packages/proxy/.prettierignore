@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Documentation and assets
+*.md
+*.yml
+CHANGELOG.md
+README.md
+

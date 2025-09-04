@@ -3,6 +3,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
 import * as vscode from 'vscode';
+import { arePathsEqual } from './utils/path';
 
 /**
  * HTTP server that exposes MCP over SSE:
@@ -15,6 +16,7 @@ export class SseHttpServer {
   #serverStatus: 'running' | 'stopped' | 'starting' = 'stopped';
 
   private httpServer?: http.Server;
+  private additionalServers: http.Server[] = [];
   private sockets = new Set<import('node:net').Socket>();
   private serverClosingPromise?: Promise<void>;
   private serverCloseResolve?: () => void;
@@ -26,6 +28,10 @@ export class SseHttpServer {
   private heartbeats: Record<string, NodeJS.Timeout> = {};
   // Queue for messages received before an SSE transport is available (after restart)
   private pendingMessages: JSONRPCMessage[] = [];
+  // Periodic discovery registration timer
+  private registrationTimer: NodeJS.Timeout | undefined;
+  private registrationBasePort: number | undefined;
+  private registrationWorkspaceFolder: string | undefined;
 
   public get serverStatus(): 'running' | 'stopped' | 'starting' {
     return this.#serverStatus;
@@ -107,6 +113,9 @@ export class SseHttpServer {
     // If a previous server exists, wait for it to close before starting
     await this.waitForServerClose(0).catch(() => { /* ignore */ });
 
+    // Ensure process-local discovery sweep timer is running
+    ensureDiscoverySweepTimer(this.outputChannel);
+
     // Create HTTP server with manual routing
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url || '/', `http://localhost:${this.listenPort}`);
@@ -131,6 +140,59 @@ export class SseHttpServer {
         };
         const text = JSON.stringify(response);
         res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('content-length', Buffer.byteLength(text));
+        res.end(text);
+        return;
+      }
+
+      // POST /register -> upsert discovery record and return full copy
+      if (req.method === 'POST' && url.pathname === '/register') {
+        // Lazy cleanup before handling
+        discoveryLazyCleanup();
+        const body = await this.readJsonBody(req).catch(() => undefined);
+        if (!isRegisterBody(body)) {
+          const text = JSON.stringify({ error: 'Invalid body. Expected { port: number, workspaceFolder: string }' });
+          res.statusCode = 400;
+          res.setHeader('content-type', 'application/json');
+          res.setHeader('content-length', Buffer.byteLength(text));
+          res.end(text);
+          return;
+        }
+        discoveryUpsert(body.port, body.workspaceFolder, Date.now());
+        const payload = { discovery: discoveryGetCopy() };
+        const text = JSON.stringify(payload);
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('content-length', Buffer.byteLength(text));
+        res.end(text);
+        return;
+      }
+
+      // GET /discovery?workspaceFolder=...
+      if (req.method === 'GET' && url.pathname === '/discovery') {
+        // Lazy cleanup before handling
+        discoveryLazyCleanup();
+        const wf = url.searchParams.get('workspaceFolder');
+        if (!wf) {
+          const text = JSON.stringify({ error: 'workspaceFolder is required' });
+          res.statusCode = 400;
+          res.setHeader('content-type', 'application/json');
+          res.setHeader('content-length', Buffer.byteLength(text));
+          res.end(text);
+          return;
+        }
+        const found = discoveryFindFirstByWorkspace(wf);
+        if (found) {
+          const text = JSON.stringify({ port: found.port });
+          res.statusCode = 200;
+          res.setHeader('content-type', 'application/json');
+          res.setHeader('content-length', Buffer.byteLength(text));
+          res.end(text);
+          return;
+        }
+        const text = JSON.stringify({ discovery: discoveryGetCopy() });
+        res.statusCode = 404;
         res.setHeader('content-type', 'application/json');
         res.setHeader('content-length', Buffer.byteLength(text));
         res.end(text);
@@ -231,6 +293,17 @@ export class SseHttpServer {
       if (req.method === 'POST' && (url.pathname === '/messages' || url.pathname === '/sse' || url.pathname === '/')) {
         // parse body (JSON)
         const body = await this.readJsonBody(req).catch(() => undefined);
+        const now = () => new Date().toISOString();
+        const msgId = (() => {
+          try {
+            const id = (body as any)?.id;
+            return typeof id === 'string' || typeof id === 'number' ? String(id) : '<no-id>';
+          } catch { return '<no-id>'; }
+        })();
+        const method = (() => {
+          try { return (body as any)?.method ?? '<unknown>'; } catch { return '<unknown>'; }
+        })();
+        console.error(`[sse-http] ${now()} proxy->ext POST ${url.pathname} method=${method} id=${msgId}`);
         const sessionId = url.searchParams.get('sessionId') || undefined;
 
         // Select transport: explicit session -> matching; else if not found -> fallback to lastActive
@@ -293,10 +366,13 @@ export class SseHttpServer {
           try {
             await this.mcpServer.connect(newTransport);
             this.outputChannel.appendLine('MCP server connected to SSE transport (POST /sse)');
+            console.error(`[sse-http] ${now()} ext SSE transport connected via POST /sse sessionId=${newTransport.sessionId}`);
             // If POST carried an initial JSON-RPC message, handle it as the first message
             if (body && typeof body === 'object') {
               try {
+                console.error(`[sse-http] ${now()} ext handling initial POST body as message id=${msgId} method=${method}`);
                 await newTransport.handleMessage(body as JSONRPCMessage);
+                console.error(`[sse-http] ${now()} ext handled initial POST body id=${msgId}`);
               } catch (e) {
                 const em = e instanceof Error ? e.message : String(e);
                 this.outputChannel.appendLine('Error handling initial POST body as message: ' + em);
@@ -348,10 +424,13 @@ export class SseHttpServer {
         }
 
         try {
+          console.error(`[sse-http] ${now()} ext handling POST message id=${msgId} method=${method} sessionId=${transport.sessionId}`);
           await transport.handlePostMessage(req as any, res, body);
+          console.error(`[sse-http] ${now()} ext handled POST message id=${msgId}`);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           this.outputChannel.appendLine('Error handling POST message: ' + msg);
+          console.error(`[sse-http] ${now()} ext ERROR handling POST id=${msgId} message=${msg}`);
           res.statusCode = 500;
           res.setHeader('content-type', 'text/plain');
           res.end('Internal Server Error');
@@ -411,6 +490,15 @@ export class SseHttpServer {
 
   async close(): Promise<void> {
     this.serverStatus = 'stopped';
+    // Stop registration timer
+    if (this.registrationTimer) {
+      try { clearInterval(this.registrationTimer); } catch { /* ignore */ }
+      this.registrationTimer = undefined;
+    }
+    // Close additional listeners
+    for (const srv of this.additionalServers.splice(0)) {
+      try { srv.close(); } catch { /* ignore */ }
+    }
     await this.closeCurrentConnection();
     if (this.httpServer) {
       this.outputChannel.appendLine('Closing SSE HTTP server');
@@ -448,6 +536,63 @@ export class SseHttpServer {
       });
       req.on('error', reject);
     });
+  }
+
+  // ======= Additional listening support =======
+  /**
+   * Try to additionally listen on a base port without restarting the main instance.
+   * Returns true on success, false if port is occupied or bind failed.
+   */
+  public async listenAdditionally(port: number): Promise<boolean> {
+    if (port === this.listenPort) {
+      return true; // already listening on this port as primary
+    }
+    // If already bound on this port, return
+    if (this.additionalServers.some((s) => (s.address() as any)?.port === port)) {
+      return true;
+    }
+    const server = http.createServer(this.httpServer?.listeners('request')[0] as any);
+    // mirror timeouts
+    server.requestTimeout = 0;
+    // @ts-ignore
+    server.headersTimeout = 0;
+    server.keepAliveTimeout = 120000;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', (err: NodeJS.ErrnoException) => {
+          server.removeAllListeners('listening');
+          reject(err);
+        });
+        server.once('listening', () => {
+          server.removeAllListeners('error');
+          this.additionalServers.push(server);
+          resolve();
+        });
+        server.listen(port);
+      });
+      this.outputChannel.appendLine(`MCP (SSE) added listening at :${port}`);
+      return true;
+    } catch (e) {
+      const err = e as NodeJS.ErrnoException;
+      if (err.code === 'EADDRINUSE') {
+        return false;
+      }
+      return false;
+    }
+  }
+
+  /** Lightweight /ping probe with timeout ms. */
+  public static async probePing(port: number, timeoutMs: number): Promise<boolean> {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), Math.max(1, timeoutMs));
+    try {
+      const res = await fetch(`http://localhost:${port}/ping`, { signal: controller.signal });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(t);
+    }
   }
 
 
@@ -520,4 +665,151 @@ export class SseHttpServer {
       }
     }
   }
+
+  // ======= Discovery registration (periodic) =======
+  /**
+   * Schedule periodic POST /register against the basePort and sync local discovery copy.
+   * Performs an immediate registration once and then every intervalMs.
+   */
+  public scheduleDiscoveryRegistration(opts: RegistrationOptions): void {
+    const intervalMs = Math.max(1000, opts.intervalMs ?? 60_000);
+    this.registrationBasePort = opts.basePort;
+    this.registrationWorkspaceFolder = opts.workspaceFolder;
+    const makeBody = () => ({ port: this.listenPort, workspaceFolder: this.registrationWorkspaceFolder! });
+
+    const doRegister = async () => {
+      try {
+        // Lazy cleanup of our local store before merging remote
+        discoveryLazyCleanup();
+        const res = await fetch(`http://localhost:${this.registrationBasePort}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(makeBody()),
+        });
+        if (!res.ok) return; // silent per requirements
+        const json = await res.json() as { discovery?: unknown };
+        const copy = json?.discovery;
+        if (isDiscoveryArray(copy)) {
+          discoveryReplaceAll(copy);
+        }
+      } catch {
+        // Silent failure by design
+      }
+    };
+
+    // Clear previous interval if any
+    if (this.registrationTimer) {
+      try { clearInterval(this.registrationTimer); } catch { /* ignore */ }
+      this.registrationTimer = undefined;
+    }
+    // Fire immediately and then schedule
+    void doRegister();
+    try {
+      this.registrationTimer = setInterval(() => { void doRegister(); }, intervalMs);
+    } catch { /* ignore */ }
+  }
+}
+
+// ======= DiscoveryStore (process-local) =======
+
+type DiscoveryRecord = {
+  port: number;
+  workspaceFolder: string; // stored as provided, not normalized
+  lastSeen: number; // unix ms
+};
+
+const DISCOVERY_TTL_MS = 120_000; // 120s
+const DISCOVERY_SWEEP_INTERVAL_MS = 60_000; // 60s
+
+const discoveryStore: DiscoveryRecord[] = [];
+let discoverySweepTimer: NodeJS.Timeout | undefined;
+
+function ensureDiscoverySweepTimer(output: vscode.OutputChannel | undefined): void {
+  if (discoverySweepTimer) return;
+  try {
+    discoverySweepTimer = setInterval(() => {
+      try {
+        discoveryRemoveExpired(Date.now());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        output?.appendLine(`[discovery] sweep error: ${msg}`);
+      }
+    }, DISCOVERY_SWEEP_INTERVAL_MS);
+  } catch { /* ignore */ }
+}
+
+function discoveryLazyCleanup(): void {
+  try { discoveryRemoveExpired(Date.now()); } catch { /* ignore */ }
+}
+
+function discoveryRemoveExpired(now: number): void {
+  for (let i = discoveryStore.length - 1; i >= 0; i--) {
+    const r = discoveryStore[i];
+    if (now - r.lastSeen > DISCOVERY_TTL_MS) {
+      discoveryStore.splice(i, 1);
+    }
+  }
+}
+
+function discoveryUpsert(port: number, workspaceFolder: string, now: number): void {
+  // unique by port; keep insertion order stable
+  const idx = discoveryStore.findIndex((r) => r.port === port);
+  if (idx >= 0) {
+    const rec = discoveryStore[idx];
+    rec.workspaceFolder = workspaceFolder;
+    rec.lastSeen = now;
+    return;
+  }
+  discoveryStore.push({ port, workspaceFolder, lastSeen: now });
+}
+
+function discoveryFindFirstByWorkspace(workspaceFolder: string): DiscoveryRecord | undefined {
+  for (const r of discoveryStore) {
+    if (arePathsEqual(r.workspaceFolder, workspaceFolder)) {
+      return r;
+    }
+  }
+  return undefined;
+}
+
+function discoveryGetCopy(): DiscoveryRecord[] {
+  return discoveryStore.map((r) => ({ ...r }));
+}
+
+function isRegisterBody(v: unknown): v is { port: number; workspaceFolder: string } {
+  if (!v || typeof v !== 'object') return false;
+  const port = (v as Record<string, unknown>).port;
+  const wf = (v as Record<string, unknown>).workspaceFolder;
+  return typeof port === 'number' && Number.isFinite(port) && port > 0 && typeof wf === 'string' && wf.length > 0;
+}
+
+function isDiscoveryArray(v: unknown): v is DiscoveryRecord[] {
+  if (!Array.isArray(v)) return false;
+  return v.every((r) => r && typeof r === 'object'
+    && typeof (r as any).port === 'number'
+    && Number.isFinite((r as any).port)
+    && (r as any).port > 0
+    && typeof (r as any).workspaceFolder === 'string'
+    && typeof (r as any).lastSeen === 'number');
+}
+
+function discoveryReplaceAll(copy: DiscoveryRecord[]): void {
+  // Replace the local store contents preserving array instance identity is not required
+  discoveryStore.length = 0;
+  const now = Date.now();
+  for (const r of copy) {
+    // Clamp lastSeen forward if too old (keeps TTL semantics sane)
+    const lastSeen = typeof r.lastSeen === 'number' ? r.lastSeen : now;
+    discoveryStore.push({ port: r.port, workspaceFolder: r.workspaceFolder, lastSeen });
+  }
+  // Drop any expired immediately
+  discoveryRemoveExpired(Date.now());
+}
+
+// ======= Discovery registration (periodic) =======
+
+export interface RegistrationOptions {
+  basePort: number;
+  workspaceFolder: string;
+  intervalMs?: number; // default 60s
 }

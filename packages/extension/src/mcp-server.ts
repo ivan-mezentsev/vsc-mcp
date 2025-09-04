@@ -13,9 +13,26 @@ import { codeCheckerTool } from './tools/code_checker';
 import { executeCommandToolHandler } from './tools/execute_command';
 import { focusEditorToolHandler } from './tools/focus_editor';
 import { getTerminalOutputToolHandler } from './tools/get_terminal_output';
+import { arePathsEqual, normalizePath } from './utils/path';
 
 export const extensionName = 'vscode-mcp-server';
 export const extensionDisplayName = 'VSCode MCP Server';
+
+// Global workspace folder path (normalized)
+let workspaceFolder: string | undefined;
+
+function validateWorkspaceFolderParam(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) {
+    return 'Parameter "workspaceFolder" is required and must be a non-empty string.';
+  }
+  if (!workspaceFolder) {
+    return 'Server has no active workspace folder.';
+  }
+  if (!arePathsEqual(value, workspaceFolder)) {
+    return `Invalid \"workspaceFolder\" value. Expected: ${workspaceFolder}`;
+  }
+  return null;
+}
 
 // Note: tools registered with raw schemas are passed through as-is.
 
@@ -109,8 +126,25 @@ export class ToolRegistry {
     this.server.setRequestHandler(
       CallToolRequestSchema,
       async (request, extra): Promise<CallToolResult> => {
+        // Unconditional stderr logs for debugging tool calls end-to-end
+        const now = () => new Date().toISOString();
+        const reqId = (() => {
+          const maybe = (request as unknown as { id?: unknown }).id;
+          return typeof maybe === 'string' || typeof maybe === 'number' ? String(maybe) : '<no-id>';
+        })();
+        const toolName = request.params.name ?? '<unknown>';
+        const short = (v: unknown): string => {
+          try {
+            const s = JSON.stringify(v);
+            return s.length > 400 ? s.slice(0, 400) + '…' : s;
+          } catch {
+            return String(v);
+          }
+        };
+        console.error(`[ext] ${now()} SSE->ext CALL_TOOL received id=${reqId} name=${toolName} args=${short(request.params.arguments)}`);
         const tool = this._registeredTools[request.params.name];
         if (!tool) {
+          console.error(`[ext] ${now()} ext CALL_TOOL not-found id=${reqId} name=${toolName}`);
           throw new McpError(
             ErrorCode.InvalidParams,
             `Tool ${request.params.name} not found`,
@@ -121,12 +155,16 @@ export class ToolRegistry {
           // Skip validation because raw inputschema tool is used by another tool provider
           const args = request.params.arguments;
           const cb = tool.callback as (args: unknown, extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => ReturnType<ToolCallback<any>>;
-          return await Promise.resolve(cb(args, extra));
+          console.error(`[ext] ${now()} ext->tool CALL_TOOL invoking id=${reqId} name=${toolName} (raw)`);
+          const r = await Promise.resolve(cb(args, extra));
+          console.error(`[ext] ${now()} tool->ext CALL_TOOL result id=${reqId} name=${toolName} isError=${(r as { isError?: boolean }).isError === true}`);
+          return r;
         } else if (tool.inputZodSchema) {
           const parseResult = await tool.inputZodSchema.safeParseAsync(
             request.params.arguments,
           );
           if (!parseResult.success) {
+            console.error(`[ext] ${now()} ext CALL_TOOL invalid-args id=${reqId} name=${toolName} err=${parseResult.error.message}`);
             throw new McpError(
               ErrorCode.InvalidParams,
               `Invalid arguments for tool ${request.params.name}: ${parseResult.error.message}`,
@@ -136,8 +174,12 @@ export class ToolRegistry {
           const args = parseResult.data;
           const cb = tool.callback as ToolCallback<ZodRawShape>;
           try {
-            return await Promise.resolve(cb(args, extra));
+            console.error(`[ext] ${now()} ext->tool CALL_TOOL invoking id=${reqId} name=${toolName}`);
+            const r = await Promise.resolve(cb(args, extra));
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL result id=${reqId} name=${toolName} isError=${(r as { isError?: boolean }).isError === true}`);
+            return r;
           } catch (error) {
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL ERROR id=${reqId} name=${toolName} message=${error instanceof Error ? error.message : String(error)}`);
             return {
               content: [
                 {
@@ -151,8 +193,12 @@ export class ToolRegistry {
         } else {
           const cb = tool.callback as ToolCallback<undefined>;
           try {
-            return await Promise.resolve(cb(extra));
+            console.error(`[ext] ${now()} ext->tool CALL_TOOL invoking id=${reqId} name=${toolName} (no-args)`);
+            const r = await Promise.resolve(cb(extra));
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL result id=${reqId} name=${toolName} isError=${(r as { isError?: boolean }).isError === true}`);
+            return r;
           } catch (error) {
+            console.error(`[ext] ${now()} tool->ext CALL_TOOL ERROR id=${reqId} name=${toolName} message=${error instanceof Error ? error.message : String(error)}`);
             return {
               content: [
                 {
@@ -172,6 +218,10 @@ export class ToolRegistry {
 }
 
 export function createMcpServer(_outputChannel: vscode.OutputChannel): McpServer {
+  // Initialize global workspace folder at server start
+  const wf = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  workspaceFolder = wf ? normalizePath(wf) : undefined;
+
   const mcpServer = new McpServer({
     name: extensionName,
     version: packageJson.version,
@@ -214,8 +264,9 @@ function registerTools(mcpServer: ToolRegistry) {
         modifySomething: { type: 'boolean', description: 'Flag indicating if the command is potentially destructive or modifying. Default is true.' },
         background: { type: 'boolean', description: 'Run command without waiting for completion. Default is false.' },
         timeout: { type: 'number', description: 'Timeout in milliseconds for reporting purposes. Default is 300000 (5 minutes).' },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['command'],
+      required: ['command', 'workspaceFolder'],
     },
     async (params) => {
       const p = (params ?? {}) as {
@@ -224,7 +275,16 @@ function registerTools(mcpServer: ToolRegistry) {
         modifySomething?: boolean;
         background?: boolean;
         timeout?: number;
+        workspaceFolder?: string;
       };
+
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
 
       const result = await executeCommandToolHandler({
         command: p.command,
@@ -260,10 +320,19 @@ function registerTools(mcpServer: ToolRegistry) {
           description: "Minimum severity level: 'Error', 'Warning', 'Information', or 'Hint' (default: 'Warning').",
           enum: ['Error', 'Warning', 'Information', 'Hint'],
         },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
+      required: ['workspaceFolder'],
     },
     async (params) => {
-      const p = (params ?? {}) as { severityLevel?: 'Error' | 'Warning' | 'Information' | 'Hint' };
+      const p = (params ?? {}) as { severityLevel?: 'Error' | 'Warning' | 'Information' | 'Hint'; workspaceFolder?: string };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const severityLevel = p.severityLevel && DiagnosticSeverity[p.severityLevel]
         ? DiagnosticSeverity[p.severityLevel]
         : DiagnosticSeverity.Warning;
@@ -297,8 +366,9 @@ function registerTools(mcpServer: ToolRegistry) {
         startColumn: { type: 'number', description: 'The starting column number for highlighting.' },
         endLine: { type: 'number', description: 'The ending line number for highlighting.' },
         endColumn: { type: 'number', description: 'The ending column number for highlighting.' },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['filePath'],
+      required: ['filePath', 'workspaceFolder'],
     },
     async (params) => {
       const p = (params ?? {}) as {
@@ -309,7 +379,15 @@ function registerTools(mcpServer: ToolRegistry) {
         startColumn?: number;
         endLine?: number;
         endColumn?: number;
+        workspaceFolder?: string;
       };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const result = await focusEditorToolHandler(p as any);
       return {
         content: result.content.map(item => ({ ...item, type: 'text' as const })),
@@ -338,11 +416,19 @@ function registerTools(mcpServer: ToolRegistry) {
           type: 'number',
           description: 'Maximum number of lines to retrieve (default: 1000)',
         },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['terminalId'],
+      required: ['terminalId', 'workspaceFolder'],
     },
     async (params) => {
-      const p = params as { terminalId: string; maxLines?: number };
+      const p = params as { terminalId: string; maxLines?: number; workspaceFolder?: string };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const result = await getTerminalOutputToolHandler({ terminalId: p.terminalId, maxLines: p.maxLines ?? 1000 });
       return {
         content: result.content.map(item => ({
@@ -367,11 +453,19 @@ function registerTools(mcpServer: ToolRegistry) {
         projectName: { type: 'string', description: 'Identifies the context/project making the request' },
         message: { type: 'string', description: 'The specific question/report for the user. Supports Markdown formatting.' },
         predefinedOptions: { type: 'array', items: { type: 'string' }, description: 'Predefined options for the user to choose from (optional)' },
+        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
       },
-      required: ['projectName', 'message'],
+      required: ['projectName', 'message', 'workspaceFolder'],
     },
     async (params): Promise<CallToolResult> => {
-      const p = (params ?? {}) as { projectName: string; message: string; predefinedOptions?: string[] };
+      const p = (params ?? {}) as { projectName: string; message: string; predefinedOptions?: string[]; workspaceFolder?: string };
+      const err = validateWorkspaceFolderParam(p.workspaceFolder);
+      if (err) {
+        return {
+          content: [{ type: 'text', text: err }],
+          isError: true,
+        };
+      }
       const result = await askReport({
         title: p.projectName,
         markdown: p.message,

@@ -1,0 +1,71 @@
+{
+	"name": "vsc-mcp",
+	"version": "0.2.0",
+	"description": "Specialized stdio -> SSE proxy for the VSCode extension vsc-mcp-server",
+	"bin": {
+		"vsc-mcp": "dist/bin.js"
+	},
+	"type": "module",
+	"main": "dist/bin.js",
+	"types": "dist/index.d.ts",
+	"engines": {
+		"node": ">=18"
+	},
+	"scripts": {
+		"build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/bin.js --banner:js='#!/usr/bin/env node'",
+		"dev": "tsx src/index.ts",
+		"test": "node jest-wrapper.cjs",
+		"test:watch": "node jest-wrapper.cjs --watch",
+		"lint": "eslint . && tsc --noEmit",
+		"check": "eslint . && tsc --noEmit",
+		"typecheck": "tsc --noEmit",
+		"lint:fix": "eslint . --fix",
+		"cs": "prettier --check .",
+		"cs:fix": "prettier --write .",
+		"format": "npm run lint:fix && npm run cs:fix",
+		"prepack": "node -e \"const fs=require('fs');const path=require('path');const dst=path.resolve('README.md');const src=path.resolve(__dirname,'..','..','README.md');if(!fs.existsSync(dst)){fs.copyFileSync(src,dst);fs.writeFileSync('.readme.tmp','1');}\" && npm run lint && npm run typecheck && npm run build",
+		"postpack": "node -e \"const fs=require('fs');if(fs.existsSync('.readme.tmp')){try{fs.unlinkSync('README.md');}catch(e){};try{fs.unlinkSync('.readme.tmp');}catch(e){};}\""
+	},
+	"keywords": [
+		"mcp",
+		"vsc-mcp",
+		"vsc-mcp-server"
+	],
+	"author": "Ivan Mezentsev",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ivan-mezentsev/vsc-mcp.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ivan-mezentsev/vsc-mcp/issues"
+	},
+	"files": [
+		"dist/bin.js",
+		"README.md",
+		"LICENSE"
+	],
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.17.4",
+		"@typescript-eslint/eslint-plugin": "^8.42.0",
+		"@typescript-eslint/parser": "^8.42.0",
+		"zod": "^4.1.5"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.26.0",
+		"@babel/preset-env": "^7.26.0",
+		"@babel/preset-typescript": "^7.26.0",
+		"@eslint/js": "^9.34.0",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^24.3.0",
+		"babel-jest": "^30.1.2",
+		"esbuild": "^0.25.9",
+		"eslint": "^9.15.0",
+		"eslint-config-prettier": "^10.1.1",
+		"eslint-plugin-prettier": "^5.2.1",
+		"jest": "^30.1.3",
+		"prettier": "^3.3.3",
+		"tsx": "^4.19.2",
+		"typescript": "^5.9.2"
+	}
+}

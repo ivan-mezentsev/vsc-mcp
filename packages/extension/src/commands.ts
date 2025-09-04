@@ -56,26 +56,4 @@ export function registerVSCodeCommands(
       }
     }),
   );
-
-  // Request handover
-  context.subscriptions.push(
-    vscode.commands.registerCommand('mcpServer.toggleActiveStatus', async () => {
-      if (!transport) {
-        vscode.window.showWarningMessage('MCP Server is not running.');
-        return;
-      }
-
-      try {
-        const success = await transport.requestHandover();
-        if (success) {
-          outputChannel.appendLine('Handover request successful');
-        } else {
-          vscode.window.showErrorMessage('Failed to complete handover request.');
-        }
-      } catch (err) {
-        outputChannel.appendLine(`Error requesting handover: ${err}`);
-        vscode.window.showErrorMessage(`Failed to complete handover request: ${err}`);
-      }
-    })
-  );
 }
