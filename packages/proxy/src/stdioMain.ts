@@ -1,6 +1,13 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+	getSsePort,
+	isNoServerError,
+	resetSsePort,
+	resolveSsePortWithRetry,
+} from "./discovery.js";
+import type { Env } from "./env.js";
 import { readEnv } from "./env.js";
 import { createLogger } from "./logger.js";
 import { createProxyServer, type RemoteApi } from "./proxyServer.js";
@@ -8,7 +15,11 @@ import { connectWithReconnects } from "./remoteClient.js";
 
 type SignalName = "SIGINT" | "SIGTERM";
 // Strictly typed bridge from SDK Client to our RemoteApi expected by proxyServer
-function createRemoteApi(client: Client): RemoteApi {
+function createRemoteApi(
+	client: Client,
+	env: Env,
+	logger: ReturnType<typeof createLogger>
+): RemoteApi {
 	// Use a very large timeout to effectively disable MCP request timeouts on the proxy side
 	// Keep below 2^31-1 to satisfy Node.js timer limits
 	const BIG_TIMEOUT_MS = 2_147_483_647; // ~24.8 days
@@ -18,6 +29,34 @@ function createRemoteApi(client: Client): RemoteApi {
 		resetTimeoutOnProgress: true as const,
 		// Do not specify maxTotalTimeout to avoid a hard cap
 	};
+	// Track current connected port; initial connect is to DISCOVERY_PORT unless later reconnected
+	let currentPort: number | undefined = env.DISCOVERY_PORT;
+
+	const sseUrl = (port: number) =>
+		new URL(`http://${env.DISCOVERY_HOST}:${port}${env.DISCOVERY_PATH}`);
+
+	async function ensureConnectedForWorkspaceFolder(
+		wf?: string
+	): Promise<void> {
+		// Only perform discovery if workspaceFolder is provided and SSE_PORT is not set
+		if (wf && getSsePort() === undefined) {
+			const port = await resolveSsePortWithRetry(env, logger, wf);
+			if (currentPort !== port) {
+				try {
+					await client.close().catch(() => {});
+				} catch {
+					/* ignore */
+				}
+				await client.connect(
+					new (
+						await import("@modelcontextprotocol/sdk/client/sse.js")
+					).SSEClientTransport(sseUrl(port))
+				);
+				currentPort = port;
+			}
+		}
+	}
+
 	return {
 		getServerVersion: () => {
 			return undefined;
@@ -139,9 +178,24 @@ function createRemoteApi(client: Client): RemoteApi {
 			const now = () => new Date().toISOString();
 			const name =
 				typeof (params as { name?: unknown } | undefined)?.name ===
-					"string"
+				"string"
 					? (params as { name: string }).name
 					: "<unknown>";
+			// Extract workspaceFolder if present in arguments
+			const wf = (() => {
+				try {
+					const a = (
+						params as { arguments?: { workspaceFolder?: unknown } }
+					)?.arguments?.workspaceFolder;
+					return typeof a === "string" && a.length > 0
+						? a
+						: undefined;
+				} catch {
+					return undefined;
+				}
+			})();
+			// Ensure discovery/reconnect only when workspaceFolder is available
+			await ensureConnectedForWorkspaceFolder(wf);
 			console.error(
 				`[remote] ${now()} proxy->SSE CALL_TOOL name=${name}`
 			);
@@ -150,19 +204,41 @@ function createRemoteApi(client: Client): RemoteApi {
 				params !== null &&
 				typeof (params as { name?: unknown }).name === "string"
 			) {
-				const r = await client.callTool(
-					params as {
-						name: string;
-						arguments?: Record<string, unknown>;
-						_meta?: { progressToken?: string | number };
-					},
-					undefined,
-					NO_TIMEOUT_OPTIONS
-				);
-				console.error(
-					`[remote] ${now()} SSE->proxy CALL_TOOL done name=${name} isError=${(r as { isError?: boolean }).isError === true}`
-				);
-				return r;
+				try {
+					const r = await client.callTool(
+						params as {
+							name: string;
+							arguments?: Record<string, unknown>;
+							_meta?: { progressToken?: string | number };
+						},
+						undefined,
+						NO_TIMEOUT_OPTIONS
+					);
+					console.error(
+						`[remote] ${now()} SSE->proxy CALL_TOOL done name=${name} isError=${(r as { isError?: boolean }).isError === true}`
+					);
+					return r;
+				} catch (e) {
+					// If network error and we have wf, reset and re-discover then retry once
+					if (wf && isNoServerError(e)) {
+						resetSsePort();
+						await ensureConnectedForWorkspaceFolder(wf);
+						const r = await client.callTool(
+							params as {
+								name: string;
+								arguments?: Record<string, unknown>;
+								_meta?: { progressToken?: string | number };
+							},
+							undefined,
+							NO_TIMEOUT_OPTIONS
+						);
+						console.error(
+							`[remote] ${now()} SSE->proxy CALL_TOOL done name=${name} isError=${(r as { isError?: boolean }).isError === true}`
+						);
+						return r;
+					}
+					throw e;
+				}
 			}
 			const r = await client.callTool(
 				params as never,
@@ -193,8 +269,8 @@ function createRemoteApi(client: Client): RemoteApi {
 				return client.complete(
 					params as {
 						ref:
-						| { type: "ref/resource"; uri: string }
-						| { type: "ref/prompt"; name: string };
+							| { type: "ref/resource"; uri: string }
+							| { type: "ref/prompt"; name: string };
 						argument: { name: string; value: string };
 						context?: Record<string, unknown>;
 						_meta?: { progressToken?: string | number };
@@ -223,7 +299,7 @@ export async function stdioMain(): Promise<void> {
 		const { client, close } = await connectWithReconnects(env, logger);
 		remoteClose = close;
 
-		const remoteApi = createRemoteApi(client);
+		const remoteApi = createRemoteApi(client, env, logger);
 		server = await createProxyServer(remoteApi);
 
 		// Wire stdio transport
