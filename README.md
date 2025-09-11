@@ -34,7 +34,6 @@ Install the built proxy from disk:
 npm link
 ```
 
-
 ## Key Features
 
 ### Ask Report "Human In The Loop"

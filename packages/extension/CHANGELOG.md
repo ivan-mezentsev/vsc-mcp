@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2 - 2025-09-11
+
+- update instructions
+
 ## 0.4.1 - 2025-09-11
 
 - Updated tool descriptions for more accurate interpretation by LLMs.

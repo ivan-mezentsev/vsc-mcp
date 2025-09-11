@@ -2,6 +2,13 @@
 
 A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.
 
+> ⚠️ **ATTENTION!**
+> After updating to version **0.4.1** or later, you MUST reset the cached tool definitions:
+>
+> 1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
+> 2. Type: `MCP: Reset Cached Tools`
+> 3. Run the command
+
 ## Key Features
 
 ### Ask Report "Human In The Loop"
