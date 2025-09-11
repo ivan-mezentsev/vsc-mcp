@@ -245,6 +245,8 @@ function registerTools(mcpServer: ToolRegistry) {
   mcpServer.toolWithRawInputSchema(
     'execute_command',
     dedent`
+      HARD REQUIREMENTS: DO NOT ANY CALL WITHOUT THIS PARAM: workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' }
+
       Execute a command in a VSCode integrated terminal with proper shell integration.
       This tool provides detailed output and exit status information, and supports:
       - Custom working directory
@@ -264,7 +266,7 @@ function registerTools(mcpServer: ToolRegistry) {
         modifySomething: { type: 'boolean', description: 'Flag indicating if the command is potentially destructive or modifying. Default is true.' },
         background: { type: 'boolean', description: 'Run command without waiting for completion. Default is false.' },
         timeout: { type: 'number', description: 'Timeout in milliseconds for reporting purposes. Default is 300000 (5 minutes).' },
-        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
+        workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' },
       },
       required: ['command', 'workspaceFolder'],
     },
@@ -308,6 +310,8 @@ function registerTools(mcpServer: ToolRegistry) {
   mcpServer.toolWithRawInputSchema(
     'code_checker',
     dedent`
+      HARD REQUIREMENTS: DO NOT ANY CALL WITHOUT THIS PARAM: workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' }
+
       Retrieve diagnostics from VSCode's language services for the active workspace.
       Use this tool after making changes to any code in the filesystem to ensure no new
       errors were introduced, or when requested by the user.
@@ -320,7 +324,7 @@ function registerTools(mcpServer: ToolRegistry) {
           description: "Minimum severity level: 'Error', 'Warning', 'Information', or 'Hint' (default: 'Warning').",
           enum: ['Error', 'Warning', 'Information', 'Hint'],
         },
-        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
+        workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' },
       },
       required: ['workspaceFolder'],
     },
@@ -352,6 +356,8 @@ function registerTools(mcpServer: ToolRegistry) {
   mcpServer.toolWithRawInputSchema(
     'focus_editor',
     dedent`
+      HARD REQUIREMENTS: DO NOT ANY CALL WITHOUT THIS PARAM: workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' }
+
       Open the specified file in the VSCode editor and navigate to a specific line and column.
       Use this tool to bring a file into focus and position the editor's cursor where desired.
       Note: This tool operates on the editor visual environment so that the user can see the file. It does not return the file contents in the tool call result.
@@ -366,7 +372,7 @@ function registerTools(mcpServer: ToolRegistry) {
         startColumn: { type: 'number', description: 'The starting column number for highlighting.' },
         endLine: { type: 'number', description: 'The ending line number for highlighting.' },
         endColumn: { type: 'number', description: 'The ending column number for highlighting.' },
-        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
+        workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' },
       },
       required: ['filePath', 'workspaceFolder'],
     },
@@ -400,6 +406,8 @@ function registerTools(mcpServer: ToolRegistry) {
   mcpServer.toolWithRawInputSchema(
     'get_terminal_output',
     dedent`
+      HARD REQUIREMENTS: DO NOT ANY CALL WITHOUT THIS PARAM: workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' }
+
       Retrieve the output from a specific terminal by its ID (default: "1").
       This tool allows you to check the current or historical output of a terminal,
       which is particularly useful when working with long-running commands or
@@ -416,7 +424,7 @@ function registerTools(mcpServer: ToolRegistry) {
           type: 'number',
           description: 'Maximum number of lines to retrieve (default: 1000)',
         },
-        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
+        workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' },
       },
       required: ['terminalId', 'workspaceFolder'],
     },
@@ -444,21 +452,23 @@ function registerTools(mcpServer: ToolRegistry) {
   mcpServer.toolWithRawInputSchema(
     'ask_report',
     dedent`
+      HARD REQUIREMENTS: DO NOT ANY CALL WITHOUT THIS PARAM: workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' }
+      
       Open a webview to ask for a user report/confirmation and return the decision.
       Input schema matches the reference 'ask_user' exactly.
     `.trim(),
     {
       type: 'object',
       properties: {
-        projectName: { type: 'string', description: 'Identifies the context/project making the request' },
+        topicName: { type: 'string', description: 'Short name of the request subject like a title' },
         message: { type: 'string', description: 'The specific question/report for the user. Supports Markdown formatting.' },
         predefinedOptions: { type: 'array', items: { type: 'string' }, description: 'Predefined options for the user to choose from (optional)' },
-        workspaceFolder: { type: 'string', description: 'Absolute path to workspace (required)' },
+        workspaceFolder: { type: 'string', description: 'REQUIRED: absolute path to the workspace root (used as the routing identifier for MCP tools). Always provide it as an absolute path, e.g., /Users/name/project (even for non‑filesystem tools).' },
       },
-      required: ['projectName', 'message', 'workspaceFolder'],
+      required: ['topicName', 'message', 'workspaceFolder'],
     },
     async (params): Promise<CallToolResult> => {
-      const p = (params ?? {}) as { projectName: string; message: string; predefinedOptions?: string[]; workspaceFolder?: string };
+      const p = (params ?? {}) as { topicName: string; message: string; predefinedOptions?: string[]; workspaceFolder?: string };
       const err = validateWorkspaceFolderParam(p.workspaceFolder);
       if (err) {
         return {
@@ -467,7 +477,7 @@ function registerTools(mcpServer: ToolRegistry) {
         };
       }
       const result = await askReport({
-        title: p.projectName,
+        title: p.topicName,
         markdown: p.message,
         initialValue: '',
         predefinedOptions: p.predefinedOptions,

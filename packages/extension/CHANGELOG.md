@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.1 - 2025-09-11
+
+- Updated tool descriptions for more accurate interpretation by LLMs.
+    There's currently no way to automatically reset the `mcpToolCache` (VS Code bug). If the new MCP version still serves stale descriptions, manually clear the cache on macOS:
+      - Fully quit all VS Code instances
+      - Run the following commands:
+      ```shell
+      cd "${HOME}/Library/Application Support/Code"
+      # cd "${HOME}/Library/Application Support/Code - Insiders"
+
+      # Show potential matches in sqlite DBs
+      for db in $(find . -type f -name "*.vscdb"); do echo "=== $db ==="; sqlite3 "$db" "SELECT key FROM ItemTable WHERE key = 'mcpToolCache';"; done
+
+      # Delete the exact key from all .vscdb files (only after backup)
+      for db in $(find . -type f -name "*.vscdb"); do sqlite3 "$db" "DELETE FROM ItemTable WHERE key='mcpToolCache';"; done
+      ```
+
 ## 0.4.0 - 2025-09-04
 
 - Introduced full multi-instance support with automatic discovery service and proxying via stdio service.
