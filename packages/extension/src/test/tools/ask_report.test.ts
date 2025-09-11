@@ -88,7 +88,7 @@ suite('ask_report tool', () => {
         // Prepare fresh fake panel for the callback's internal askReport by updating existing stub
         const fake2 = createFakePanel();
         createStub.returns(fake2.panel as any);
-        const toolPromise = cb({ projectName: 'X', message: 'Q', workspaceFolder: wsFolder }, {});
+        const toolPromise = cb({ topicName: 'X', message: 'Q', workspaceFolder: wsFolder }, {});
         fake2.send({ type: 'cancel' });
         const callRes = await toolPromise;
         assert.strictEqual(callRes.content?.[0]?.text, 'User replied with empty input.');
@@ -112,7 +112,7 @@ suite('ask_report tool', () => {
         const fake2 = createFakePanel();
         createStub.returns(fake2.panel as any);
         // reuse existing getConfiguration stub already returning 1
-        const toolPromise = cb({ projectName: 'X', message: 'Q', workspaceFolder: wsFolder }, {});
+        const toolPromise = cb({ topicName: 'X', message: 'Q', workspaceFolder: wsFolder }, {});
         fake2.send({ type: 'timeout' });
         const callRes = await toolPromise;
         assert.strictEqual(callRes.content?.[0]?.text, 'User did not reply: Timeout occurred.');

@@ -1,6 +1,9 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	getSsePort,
 	isNoServerError,
@@ -59,7 +62,14 @@ function createRemoteApi(
 
 	return {
 		getServerVersion: () => {
-			return undefined;
+			// Provide dynamic version (YYYY.MM.DD) to force VS Code MCP cache invalidation when proxy restarts
+			const now = new Date();
+			const version = [
+				now.getFullYear(),
+				String(now.getMonth() + 1).padStart(2, "0"),
+				String(now.getDate()).padStart(2, "0"),
+			].join(".");
+			return { version };
 		},
 		ping: async () => {
 			const now = () => new Date().toISOString();
@@ -291,6 +301,30 @@ export async function stdioMain(): Promise<void> {
 	console.error(
 		`[boot] ${new Date().toISOString()} proxy starting with DISCOVERY http://${env.DISCOVERY_HOST}:${env.DISCOVERY_PORT}${env.DISCOVERY_PATH}`
 	);
+	// Best-effort read of version from package.json (works in dev). Fallback to npm env var.
+	try {
+		let version: string | undefined;
+		try {
+			const here = dirname(fileURLToPath(import.meta.url));
+			const pkgPath = resolve(here, "../package.json");
+			const raw = readFileSync(pkgPath, "utf8");
+			version = (JSON.parse(raw) as { version?: unknown })?.version as
+				| string
+				| undefined;
+		} catch {
+			// ignore fs/JSON errors
+		}
+		if (!version && typeof process.env.npm_package_version === "string") {
+			version = process.env.npm_package_version;
+		}
+		if (version) {
+			console.error(
+				`[boot] ${new Date().toISOString()} proxy running version ${version}`
+			);
+		}
+	} catch {
+		// ignore outer errors
+	}
 
 	// Connect to remote SSE backend with reconnects
 	let server: Server | undefined;
