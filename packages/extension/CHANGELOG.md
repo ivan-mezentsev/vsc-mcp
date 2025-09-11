@@ -3,19 +3,24 @@
 ## 0.4.1 - 2025-09-11
 
 - Updated tool descriptions for more accurate interpretation by LLMs.
-    There's currently no way to automatically reset the `mcpToolCache` (VS Code bug). If the new MCP version still serves stale descriptions, manually clear the cache on macOS:
-      - Fully quit all VS Code instances
-      - Run the following commands:
-      ```shell
-      cd "${HOME}/Library/Application Support/Code"
-      # cd "${HOME}/Library/Application Support/Code - Insiders"
+  - To refresh cached tool definitions using the official method:
+    1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
+    2. Type: `MCP: Reset Cached Tools`
+    3. Select the command and execute it
+  - If the new MCP version still shows outdated tool descriptions (there is currently no automatic way to invalidate the `mcpToolCache` due to a VS Code bug), manually clear the cache on macOS:
+    - Fully quit all VS Code instances
+    - Then run:
 
-      # Show potential matches in sqlite DBs
-      for db in $(find . -type f -name "*.vscdb"); do echo "=== $db ==="; sqlite3 "$db" "SELECT key FROM ItemTable WHERE key = 'mcpToolCache';"; done
+    ```bash
+    cd "${HOME}/Library/Application Support/Code"
+    # cd "${HOME}/Library/Application Support/Code - Insiders"
 
-      # Delete the exact key from all .vscdb files (only after backup)
-      for db in $(find . -type f -name "*.vscdb"); do sqlite3 "$db" "DELETE FROM ItemTable WHERE key='mcpToolCache';"; done
-      ```
+    # Show potential matches in sqlite DBs
+    for db in $(find . -type f -name "*.vscdb"); do echo "=== $db ==="; sqlite3 "$db" "SELECT key FROM ItemTable WHERE key = 'mcpToolCache';"; done
+
+    # Delete the exact key from all .vscdb files (only after backup)
+    for db in $(find . -type f -name "*.vscdb"); do sqlite3 "$db" "DELETE FROM ItemTable WHERE key='mcpToolCache';"; done
+    ```
 
 ## 0.4.0 - 2025-09-04
 
