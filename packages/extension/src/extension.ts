@@ -4,6 +4,10 @@ import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
 import { SseHttpServer } from './sse-http-server';
 
+// Custom wrapper command to log result of the built-in reset command
+const BUILT_IN_RESET_CMD = 'workbench.mcp.resetCachedTools';
+const WRAPPED_RESET_CMD = 'vsc-mcp.resetCachedToolsWithLog';
+
 // MCP Server のステータスを表示するステータスバーアイテム
 let serverStatusBarItem: vscode.StatusBarItem;
 let sseServer: SseHttpServer | undefined;
@@ -20,7 +24,8 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
       serverStatusBarItem.tooltip = sseServer?.listenPort
         ? `VSC MCP is running on port ${sseServer.listenPort}`
         : 'VSC MCP is running';
-      serverStatusBarItem.command = undefined;
+      // Clicking status bar: run wrapper command that logs result of the built-in reset
+      serverStatusBarItem.command = WRAPPED_RESET_CMD;
       break;
     case 'starting':
       serverStatusBarItem.text = '$(sync~spin) VSC MCP';
@@ -121,6 +126,41 @@ export const activate = async (context: vscode.ExtensionContext) => {
 
   // Register VSCode commands
   registerVSCodeCommands(context, mcpServer, outputChannel, startServerWithPortScan, sseServer);
+
+  // Register wrapper command for logging result of built-in resetCachedTools command
+  context.subscriptions.push(
+    vscode.commands.registerCommand(WRAPPED_RESET_CMD, async () => {
+      outputChannel.appendLine('Invoking reset cached tools...');
+      // Preserve previous state
+      const prevText = serverStatusBarItem.text;
+      const prevTooltip = serverStatusBarItem.tooltip;
+      try {
+        serverStatusBarItem.text = '$(sync~spin) VSC MCP';
+        serverStatusBarItem.tooltip = 'Resetting cached tools...';
+        serverStatusBarItem.show();
+        const startedAt = Date.now();
+        const result = await vscode.commands.executeCommand(BUILT_IN_RESET_CMD as string);
+        const elapsed = Date.now() - startedAt;
+        outputChannel.appendLine(`Reset cached tools completed in ${elapsed} ms.`);
+        // Ensure spinner visible at least 1s
+        const remaining = 1000 - elapsed;
+        await new Promise((r) => setTimeout(r, remaining > 0 ? remaining : 0));
+        // Restore previous UI if still in running state
+        serverStatusBarItem.text = prevText;
+        serverStatusBarItem.tooltip = prevTooltip;
+        serverStatusBarItem.show();
+        return result;
+      } catch (err: unknown) {
+        const e = err as Error | string;
+        outputChannel.appendLine('Error executing reset: ' + (e instanceof Error ? e.message : String(e)));
+        // Restore previous UI (error state but keep original visual)
+        serverStatusBarItem.text = prevText;
+        serverStatusBarItem.tooltip = prevTooltip;
+        serverStatusBarItem.show();
+        throw err;
+      }
+    })
+  );
 
   outputChannel.appendLine(`${extensionDisplayName} activated.`);
 };
