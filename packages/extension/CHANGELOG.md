@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 - 2025-09-12
+
+- feat(status-bar): add wrapper command for reset cached tools
+
 ## 0.4.2 - 2025-09-11
 
 - update instructions
