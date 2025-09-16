@@ -162,18 +162,23 @@ button:focus-visible, textarea:focus-visible, input[type="radio"]:focus-visible 
 .markdown h1, .markdown h2, .markdown h3 { margin: 0.8em 0 0.4em; }
 .markdown p { margin: 0.5em 0; }
 .markdown ul, .markdown ol { margin: 0.5em 0 0.5em 1.25em; }
-.markdown code { background: var(--vscode-textPreformat-background, rgba(127,127,127,0.15)); padding: 0.1em 0.25em; border-radius: 4px; }
-.markdown pre { background: var(--vscode-textPreformat-background, rgba(127,127,127,0.15)); padding: 0.6rem; border-radius: 6px; overflow: auto; }
+/* Inline code */
+.markdown code { background: var(--vscode-textCodeBlock-background, var(--vscode-textPreformat-background, rgba(127,127,127,0.15))); padding: 0.1em 0.25em; border-radius: 4px; }
 
-/* Override: remove highlight-like background from inline and fenced code for a more native look */
-.markdown code,
+/* Fenced code blocks */
 .markdown pre {
-  background: transparent !important; /* remove tinted background that looked like selection */
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editor-inactiveSelectionBackground, var(--vscode-editor-background)));
+  padding: 0.6rem;
+  border-radius: 6px;
+  overflow: auto;
+  border: 1px solid var(--vscode-editorWidget-border);
 }
 
-/* Provide subtle delineation for fenced blocks without highlight fill */
-.markdown pre {
-  border: 1px solid var(--vscode-editorWidget-border);
+/* Ensure highlight.js block inherits container background */
+.markdown pre code.hljs {
+  background: transparent !important;
+  display: block;
+  color: var(--vscode-editor-foreground); /* fallback readable color */
 }
 
 /* Use editor's configured font for code (fallback monospace) */
@@ -184,3 +189,27 @@ button:focus-visible, textarea:focus-visible, input[type="radio"]:focus-visible 
   font-size: 0.95em; /* slightly smaller to blend with surrounding text */
   line-height: 1.4;
 }
+
+/* Minimal adaptive syntax colors for better contrast */
+body.vscode-dark .hljs-comment, body.vscode-high-contrast .hljs-comment { color: #6A9955; }
+body.vscode-dark .hljs-quote { color: #6A9955; }
+body.vscode-dark .hljs-keyword, body.vscode-dark .hljs-selector-tag { color: #C586C0; }
+body.vscode-dark .hljs-string, body.vscode-dark .hljs-meta .hljs-string { color: #CE9178; }
+body.vscode-dark .hljs-number, body.vscode-dark .hljs-literal { color: #B5CEA8; }
+body.vscode-dark .hljs-variable, body.vscode-dark .hljs-template-variable, body.vscode-dark .hljs-attr { color: #9CDCFE; }
+body.vscode-dark .hljs-title, body.vscode-dark .hljs-section { color: #4FC1FF; }
+
+body.vscode-light .hljs-comment, body.vscode-high-contrast-light .hljs-comment { color: #008000; }
+body.vscode-light .hljs-quote { color: #008000; }
+body.vscode-light .hljs-keyword, body.vscode-light .hljs-selector-tag { color: #0000FF; }
+body.vscode-light .hljs-string, body.vscode-light .hljs-meta .hljs-string { color: #A31515; }
+body.vscode-light .hljs-number, body.vscode-light .hljs-literal { color: #098658; }
+body.vscode-light .hljs-variable, body.vscode-light .hljs-template-variable, body.vscode-light .hljs-attr { color: #1F619C; }
+body.vscode-light .hljs-title, body.vscode-light .hljs-section { color: #795E26; }
+
+/* High contrast weight emphasis */
+body.vscode-high-contrast .hljs-keyword,
+body.vscode-high-contrast .hljs-string,
+body.vscode-high-contrast .hljs-number,
+body.vscode-high-contrast .hljs-variable,
+body.vscode-high-contrast .hljs-title { font-weight: 600; }

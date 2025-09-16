@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 - 2025-09-16
+
+- Replaced marked.min.js with markdown-deps.js to bundle marked and highlight.js.
+- Added highlight.js CSS for code block styling.
+- Integrated highlight.js for automatic code block highlighting in markdown.
+- Created markdownDeps.ts to expose marked and highlight.js to the webview.
+
+## 0.4.4 - 2025-09-16
+
+- style(ask_report): improve markdown styling for a native look
+
 ## 0.4.3 - 2025-09-12
 
 - feat(status-bar): add wrapper command for reset cached tools

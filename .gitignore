@@ -1,6 +1,8 @@
 *.d.ts
 *.vsix
 packages/extension/.vscode-test/**
+packages/extension/media/markdown-deps.js
+packages/extension/media/highlight.github.css
 dist
 node_modules
 out

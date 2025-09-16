@@ -18,9 +18,23 @@ async function main() {
     logLevel: 'warning',
     plugins: [
       /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin
-    ]
+      esbuildProblemMatcherPlugin,
+    ],
   });
+  // build webview vendor (marked + highlight.js) - separate build because it's browser targeted
+  await esbuild.build({
+    entryPoints: ['src/webview/markdownDeps.ts'],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    globalName: 'McpMarkdownDeps',
+    minify: production,
+    sourcemap: false,
+    outfile: 'media/markdown-deps.js',
+    logLevel: 'warning',
+  });
+  // copy highlight.js css theme from node_modules
+  await copyHighlightCss();
   if (watch) {
     await ctx.watch();
   } else {
@@ -43,8 +57,8 @@ async function testBuild() {
     external: ['vscode'],
     plugins: [
       /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin
-    ]
+      esbuildProblemMatcherPlugin,
+    ],
   });
   await ctx.rebuild();
   await ctx.dispose();
@@ -60,7 +74,7 @@ const esbuildProblemMatcherPlugin = {
     build.onStart(() => {
       console.log('[watch] build started');
     });
-    build.onEnd(result => {
+    build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
         console.error(`✘ [ERROR] ${text}`);
         if (location == null) return;
@@ -68,7 +82,7 @@ const esbuildProblemMatcherPlugin = {
       });
       console.log('[watch] build finished');
     });
-  }
+  },
 };
 
 if (test) {
@@ -82,3 +96,17 @@ if (test) {
     process.exit(1);
   });
 }
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+async function copyHighlightCss() {
+  try {
+    const src = require.resolve('highlight.js/styles/github.css');
+  const target = path.join(__dirname, 'media', 'highlight.github.css');
+  fs.copyFileSync(src, target);
+  } catch (e) {
+  console.warn('[build] unable to copy highlight.js css', e && e.message ? e.message : e);
+  }
+}
+
