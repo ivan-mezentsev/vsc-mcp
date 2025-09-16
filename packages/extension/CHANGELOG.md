@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 - 2025-09-16
+
+- feat(ask_report): enable GitHub-flavored markdown support for tables
+
 ## 0.5.0 - 2025-09-16
 
 - Replaced marked.min.js with markdown-deps.js to bundle marked and highlight.js.

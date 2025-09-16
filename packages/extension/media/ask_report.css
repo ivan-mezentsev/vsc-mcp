@@ -213,3 +213,10 @@ body.vscode-high-contrast .hljs-string,
 body.vscode-high-contrast .hljs-number,
 body.vscode-high-contrast .hljs-variable,
 body.vscode-high-contrast .hljs-title { font-weight: 600; }
+
+/* Tables */
+.markdown table { border-collapse: collapse; width: 100%; margin: 0.75em 0; font-variant-numeric: tabular-nums; }
+.markdown th, .markdown td { border: 1px solid var(--vscode-editorWidget-border); padding: 4px 8px; text-align: left; vertical-align: top; }
+.markdown thead th { background: var(--vscode-editor-inactiveSelectionBackground, rgba(127,127,127,0.15)); }
+.markdown .table-wrapper { overflow-x: auto; }
+.markdown .table-wrapper table { min-width: fit-content; }
