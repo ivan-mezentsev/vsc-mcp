@@ -72,11 +72,12 @@ body {
 .markdown {
   /* Scrollable Markdown container */
   overflow: auto;
-  /* reserve bottom area for fixed dock; add top padding for fixed header */
+  /* Reserve bottom area for fixed dock; add top padding for fixed header */
   padding: 2.25rem 0.75rem calc(0.75rem + var(--askreport-dock-height, 128px)) 0.75rem;
-  border: 1px solid var(--vscode-editorWidget-border);
-  border-radius: 6px;
-  background: var(--vscode-editorWidget-background, transparent);
+  /* Remove visual chrome (border/background) to look native/plain */
+  border: none;
+  background: transparent !important;
+  border-radius: 0;
 }
 
 .controls { display: grid; gap: 0.5rem; }
@@ -163,3 +164,23 @@ button:focus-visible, textarea:focus-visible, input[type="radio"]:focus-visible 
 .markdown ul, .markdown ol { margin: 0.5em 0 0.5em 1.25em; }
 .markdown code { background: var(--vscode-textPreformat-background, rgba(127,127,127,0.15)); padding: 0.1em 0.25em; border-radius: 4px; }
 .markdown pre { background: var(--vscode-textPreformat-background, rgba(127,127,127,0.15)); padding: 0.6rem; border-radius: 6px; overflow: auto; }
+
+/* Override: remove highlight-like background from inline and fenced code for a more native look */
+.markdown code,
+.markdown pre {
+  background: transparent !important; /* remove tinted background that looked like selection */
+}
+
+/* Provide subtle delineation for fenced blocks without highlight fill */
+.markdown pre {
+  border: 1px solid var(--vscode-editorWidget-border);
+}
+
+/* Use editor's configured font for code (fallback monospace) */
+.markdown code,
+.markdown pre,
+.markdown pre code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.95em; /* slightly smaller to blend with surrounding text */
+  line-height: 1.4;
+}
