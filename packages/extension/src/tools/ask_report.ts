@@ -414,6 +414,15 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                 try {
                     // Render markdown using marked with HTML disabled for safety
                     if (window.marked) {
+                        // Ensure GitHub-flavored markdown (tables, etc.) is enabled.
+                        try {
+                            if (typeof window.marked.setOptions === 'function') {
+                                window.marked.setOptions({ gfm: true });
+                            } else {
+                                // Fallback: some versions use .use() pattern
+                                window.marked.use({ gfm: true });
+                            }
+                        } catch {}
                         window.marked.use({ mangle: false, headerIds: false });
                         const html = window.marked.parse(initData.markdown || '', { async: false });
                         el.markdown.innerHTML = html;
