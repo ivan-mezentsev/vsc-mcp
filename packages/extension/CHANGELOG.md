@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2 - 2025-09-16
+
+- feat(ask_report): add support for Mermaid diagrams in markdown
+
 ## 0.5.1 - 2025-09-16
 
 - feat(ask_report): enable GitHub-flavored markdown support for tables

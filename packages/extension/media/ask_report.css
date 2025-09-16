@@ -220,3 +220,20 @@ body.vscode-high-contrast .hljs-title { font-weight: 600; }
 .markdown thead th { background: var(--vscode-editor-inactiveSelectionBackground, rgba(127,127,127,0.15)); }
 .markdown .table-wrapper { overflow-x: auto; }
 .markdown .table-wrapper table { min-width: fit-content; }
+
+/* Mermaid diagrams */
+.markdown .mermaid {
+  /* Provides a container for the diagram with consistent styling */
+  margin: 0.75em 0;
+  padding: 1rem;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 6px;
+  text-align: center; /* Center the diagram */
+  overflow: auto; /* Allow scrolling for large diagrams */
+}
+
+.markdown .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}

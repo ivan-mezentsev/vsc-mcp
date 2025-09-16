@@ -3,7 +3,7 @@
   "displayName": "VSC-MCP Server",
   "description": "A VSCode extension that exposes your IDE as an MCP server — compensating for missing capabilities required by AI agents and enabling advanced control.",
   "publisher": "ivan-mezentsev",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "type": "commonjs",
   "icon": "icon.png",
   "categories": [
@@ -92,7 +92,7 @@
   },
   "main": "./dist/extension.js",
   "scripts": {
-  "vscode:prepublish": "pnpm package",
+    "vscode:prepublish": "pnpm package",
     "package-extension": "cross-env npm_config_user_agent=pnpm vsce package --no-dependencies",
     "generate:icon": "node scripts/generate_icon.js",
     "compile": "pnpm check-types && node build.js",
@@ -128,14 +128,15 @@
     "dedent": "^1.5.3",
     "diff": "^8.0.2",
     "esbuild": "^0.25.9",
+    "highlight.js": "^11.10.0",
     "ignore": "^7.0.3",
     "isbinaryfile": "^5.0.4",
     "mammoth": "^1.10.0",
+    "marked": "16.3.0",
+    "mermaid": "^11.11.0",
     "p-wait-for": "^5.0.2",
     "pdf-parse": "^1.1.1",
-  "strip-bom": "^5.0.0",
-  "highlight.js": "^11.10.0",
-  "marked": "16.3.0"
+    "strip-bom": "^5.0.0"
   },
   "packageManager": "pnpm@10.6.1+sha512.40ee09af407fa9fbb5fbfb8e1cb40fbb74c0af0c3e10e9224d7b53c7658528615b2c92450e74cfad91e3a2dcafe3ce4050d80bda71d757756d2ce2b66213e9a3"
 }
