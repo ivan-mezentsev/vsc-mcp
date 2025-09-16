@@ -46,8 +46,11 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
     const cssUri = panel.webview.asWebviewUri(
         vscode.Uri.joinPath(extensionUri, 'media', 'ask_report.css'),
     )
-    const markedJsUri = panel.webview.asWebviewUri(
-        vscode.Uri.joinPath(extensionUri, 'media', 'marked.min.js'),
+    const markdownDepsUri = panel.webview.asWebviewUri(
+        vscode.Uri.joinPath(extensionUri, 'media', 'markdown-deps.js'),
+    )
+    const hljsCssUri = panel.webview.asWebviewUri(
+        vscode.Uri.joinPath(extensionUri, 'media', 'highlight.github.css'),
     )
 
     // Generate secure HTML with CSP, connect marked.min.js via asWebviewUri, and build UI containers.
@@ -65,7 +68,8 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
         <meta charset="UTF-8" />
         <meta http-equiv="Content-Security-Policy" content="${csp}" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="stylesheet" href="${cssUri}" />
+    <link rel="stylesheet" href="${cssUri}" />
+    <link rel="stylesheet" href="${hljsCssUri}" />
         <title>${escapeHtml(title)}</title>
     </head>
     <body>
@@ -92,7 +96,7 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                 <button id="cancelBtn" class="btn" aria-label="Cancel">Cancel</button>
             </div>
         </footer>
-        <script nonce="${nonce}" src="${markedJsUri}"></script>
+    <script nonce="${nonce}" src="${markdownDepsUri}"></script>
         <script nonce="${nonce}">
             // Webview script — no external deps; relies on VS Code API provided object
             const vscode = acquireVsCodeApi();
@@ -413,6 +417,12 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                         window.marked.use({ mangle: false, headerIds: false });
                         const html = window.marked.parse(initData.markdown || '', { async: false });
                         el.markdown.innerHTML = html;
+                        // Highlight code blocks (auto-detect)
+                        if (window.hljs) {
+                            el.markdown.querySelectorAll('pre code').forEach((block) => {
+                                try { window.hljs.highlightElement(block); } catch {}
+                            });
+                        }
                     } else {
                         el.markdown.textContent = initData.markdown || '';
                     }
