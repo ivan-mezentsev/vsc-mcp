@@ -2,15 +2,18 @@
 
 import hljs from 'highlight.js';
 import { marked } from 'marked';
+import mermaid from 'mermaid';
 // Full highlight.js build includes all languages.
 
-// Expose to window (webview script expects window.marked & window.hljs)
+// Expose to window (webview script expects window.marked, window.hljs & window.mermaid)
 // We assign on globalThis to survive minification/changes.
 // The actual webview HTML will just consume these via a single script tag.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).marked = marked;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).hljs = hljs;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).mermaid = mermaid;
 
 // The file has no exports; side-effects attach libs to window.
 export { };

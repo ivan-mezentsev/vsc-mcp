@@ -125,9 +125,11 @@ This project bundles third‑party libraries for the ask-report webview inside a
 - `packages/extension/media/markdown-deps.js` — contains embedded copies of:
   - [marked](https://github.com/markedjs/marked) (Markdown parser)
   - [highlight.js](https://github.com/highlightjs/highlight.js) (syntax highlighting)
+  - [mermaid](https://github.com/mermaid-js/mermaid) (diagram rendering)
 - `packages/extension/media/highlight.github.css` — stylesheet adapted from highlight.js GitHub theme for code block styling.
 
 Licenses:
 
 - marked: MIT License — Copyright (c) 2018+, MarkedJS contributors
 - highlight.js: BSD 3-Clause License — © 2006-2024, highlight.js contributors
+- mermaid: MIT License — Copyright (c) 2014-2024, mermaid-js contributors

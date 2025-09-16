@@ -426,11 +426,42 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                         window.marked.use({ mangle: false, headerIds: false });
                         const html = window.marked.parse(initData.markdown || '', { async: false });
                         el.markdown.innerHTML = html;
-                        // Highlight code blocks (auto-detect)
+                        // Highlight code blocks (auto-detect, but exclude mermaid)
                         if (window.hljs) {
-                            el.markdown.querySelectorAll('pre code').forEach((block) => {
+                            el.markdown.querySelectorAll('pre code:not(.language-mermaid)').forEach((block) => {
                                 try { window.hljs.highlightElement(block); } catch {}
                             });
+                        }
+                        // Render Mermaid diagrams
+                        if (window.mermaid) {
+                            try {
+                                if (!window.mermaidInitialized) {
+                                    const bodyStyle = getComputedStyle(document.body);
+                                    window.mermaid.initialize({
+                                        startOnLoad: false,
+                                        securityLevel: 'strict',
+                                        theme: 'base',
+                                        themeVariables: {
+                                            background: bodyStyle.getPropertyValue('--vscode-editor-background').trim(),
+                                            primaryColor: bodyStyle.getPropertyValue('--vscode-editorWidget-background').trim(),
+                                            primaryTextColor: bodyStyle.getPropertyValue('--vscode-editor-foreground').trim(),
+                                            lineColor: bodyStyle.getPropertyValue('--vscode-editorWidget-border').trim(),
+                                            nodeBorder: bodyStyle.getPropertyValue('--vscode-focusBorder').trim(),
+                                        },
+                                    });
+                                    window.mermaidInitialized = true;
+                                }
+
+                                el.markdown.querySelectorAll('pre code.language-mermaid').forEach((block) => {
+                                    const container = document.createElement('div');
+                                    container.className = 'mermaid';
+                                    container.textContent = block.textContent || '';
+                                    block.parentElement?.replaceWith(container);
+                                });
+                                window.mermaid.run();
+                            } catch (e) {
+                                console.warn('Failed to render mermaid diagrams:', e);
+                            }
                         }
                     } else {
                         el.markdown.textContent = initData.markdown || '';
