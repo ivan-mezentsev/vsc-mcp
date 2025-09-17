@@ -2,7 +2,7 @@ import * as net from 'node:net';
 import * as vscode from 'vscode';
 import { registerVSCodeCommands } from './commands';
 import { createMcpServer, extensionDisplayName } from './mcp-server';
-import { SseHttpServer } from './sse-http-server';
+import { DISCOVERY_TTL_MS, SseHttpServer, getDiscoverySnapshot } from './sse-http-server';
 
 // Custom wrapper command to log result of the built-in reset command
 const BUILT_IN_RESET_CMD = 'workbench.mcp.resetCachedTools';
@@ -11,6 +11,7 @@ const WRAPPED_RESET_CMD = 'vsc-mcp.resetCachedToolsWithLog';
 // MCP Server のステータスを表示するステータスバーアイテム
 let serverStatusBarItem: vscode.StatusBarItem;
 let sseServer: SseHttpServer | undefined;
+let tooltipRefreshTimer: NodeJS.Timeout | undefined;
 
 // ステータスバーを更新する関数
 function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
@@ -21,11 +22,42 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
   switch (status) {
     case 'running':
       serverStatusBarItem.text = '$(tools) VSC MCP';
-      serverStatusBarItem.tooltip = sseServer?.listenPort
-        ? `VSC MCP is running on port ${sseServer.listenPort}`
-        : 'VSC MCP is running';
+      // Tooltip shows discovery table (Port | TTL | Workspace), decoupled from MCP status text
+      try {
+        const snapshot = getDiscoverySnapshot();
+        if (snapshot.length > 0) {
+          const now = Date.now();
+          const header = '| Port | TTL | Workspace |\n| :--- | ---: | :-------- |';
+          const rows = snapshot
+            .map((r) => {
+              const ttlMs = Math.max(0, DISCOVERY_TTL_MS - (now - r.lastSeen));
+              const ttlSec = Math.round(ttlMs / 1000);
+              const ws = r.workspaceFolder.replace(/\|/g, '\\|');
+              return `| ${r.port} | ${ttlSec} | \`${ws}\` |`;
+            })
+            .join('\n');
+          const md = new vscode.MarkdownString(`${header}\n${rows}`);
+          md.isTrusted = true;
+          serverStatusBarItem.tooltip = md;
+        } else {
+          serverStatusBarItem.tooltip = 'No discovery instances';
+        }
+      } catch {
+        serverStatusBarItem.tooltip = 'No discovery instances';
+      }
       // Clicking status bar: run wrapper command that logs result of the built-in reset
       serverStatusBarItem.command = WRAPPED_RESET_CMD;
+      // Ensure live TTL countdown by refreshing tooltip periodically
+      try {
+        if (!tooltipRefreshTimer) {
+          tooltipRefreshTimer = setInterval(() => {
+            // Only refresh when still running
+            if (sseServer?.serverStatus === 'running') {
+              try { updateServerStatusBar('running'); } catch { /* ignore */ }
+            }
+          }, 5000);
+        }
+      } catch { /* ignore */ }
       break;
     case 'starting':
       serverStatusBarItem.text = '$(sync~spin) VSC MCP';
@@ -33,12 +65,16 @@ function updateServerStatusBar(status: 'running' | 'stopped' | 'starting') {
         ? `Starting on port ${sseServer.listenPort}...`
         : 'Starting...';
       serverStatusBarItem.command = undefined;
+      // Stop live refresh while not running
+      if (tooltipRefreshTimer) { try { clearInterval(tooltipRefreshTimer); } catch { /* ignore */ } tooltipRefreshTimer = undefined; }
       break;
     case 'stopped':
     default:
       serverStatusBarItem.text = '$(circle-slash) VSC MCP';
       serverStatusBarItem.tooltip = 'VSC MCP is not running';
       serverStatusBarItem.command = undefined;
+      // Stop live refresh when stopped
+      if (tooltipRefreshTimer) { try { clearInterval(tooltipRefreshTimer); } catch { /* ignore */ } tooltipRefreshTimer = undefined; }
       break;
   }
   serverStatusBarItem.show();
@@ -90,6 +126,12 @@ export const activate = async (context: vscode.ExtensionContext) => {
     // Create server only once on the chosen port
     sseServer = new SseHttpServer(chosenPort, outputChannel, mcpServer);
     sseServer.onServerStatusChanged = (status) => updateServerStatusBar(status);
+    // Refresh tooltip when discovery snapshot changes
+    sseServer.onDiscoveryUpdated = () => {
+      if (sseServer?.serverStatus === 'running') {
+        updateServerStatusBar('running');
+      }
+    };
     await sseServer.start();
     // Schedule periodic registration to base port (from config) every 60s
     sseServer.scheduleDiscoveryRegistration({ basePort: port, workspaceFolder });

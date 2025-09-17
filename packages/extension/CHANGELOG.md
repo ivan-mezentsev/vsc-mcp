@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3 - 2025-09-18
+
+- feat(status-bar): enhance tooltip with discovery snapshot details
+
 ## 0.5.2 - 2025-09-16
 
 - feat(ask_report): add support for Mermaid diagrams in markdown

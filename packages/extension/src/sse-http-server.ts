@@ -13,6 +13,8 @@ import { arePathsEqual } from './utils/path';
  */
 export class SseHttpServer {
   onServerStatusChanged?: (status: 'running' | 'stopped' | 'starting') => void;
+  // Notify listeners (UI) when discovery snapshot updates
+  onDiscoveryUpdated?: () => void;
   #serverStatus: 'running' | 'stopped' | 'starting' = 'stopped';
 
   private httpServer?: http.Server;
@@ -160,6 +162,7 @@ export class SseHttpServer {
           return;
         }
         discoveryUpsert(body.port, body.workspaceFolder, Date.now());
+        try { this.onDiscoveryUpdated?.(); } catch { /* ignore */ }
         const payload = { discovery: discoveryGetCopy() };
         const text = JSON.stringify(payload);
         res.statusCode = 200;
@@ -691,6 +694,7 @@ export class SseHttpServer {
         const copy = json?.discovery;
         if (isDiscoveryArray(copy)) {
           discoveryReplaceAll(copy);
+          try { this.onDiscoveryUpdated?.(); } catch { /* ignore */ }
         }
       } catch {
         // Silent failure by design
@@ -718,7 +722,7 @@ type DiscoveryRecord = {
   lastSeen: number; // unix ms
 };
 
-const DISCOVERY_TTL_MS = 120_000; // 120s
+export const DISCOVERY_TTL_MS = 120_000; // 120s
 const DISCOVERY_SWEEP_INTERVAL_MS = 60_000; // 60s
 
 const discoveryStore: DiscoveryRecord[] = [];
@@ -774,6 +778,11 @@ function discoveryFindFirstByWorkspace(workspaceFolder: string): DiscoveryRecord
 
 function discoveryGetCopy(): DiscoveryRecord[] {
   return discoveryStore.map((r) => ({ ...r }));
+}
+
+// Expose a read-only snapshot of current discovery records for UI (e.g., status bar tooltip)
+export function getDiscoverySnapshot(): ReadonlyArray<DiscoveryRecord> {
+  return discoveryGetCopy();
 }
 
 function isRegisterBody(v: unknown): v is { port: number; workspaceFolder: string } {
