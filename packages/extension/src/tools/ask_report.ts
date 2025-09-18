@@ -463,6 +463,12 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                                 console.warn('Failed to render mermaid diagrams:', e);
                             }
                         }
+
+                        // After rendering and enhancing content, decorate code blocks with a top-right badge
+                        try {
+                            const langs = collectFenceLangsWithMarked(initData.markdown || '');
+                            decorateCodeBlocks(langs);
+                        } catch {}
                     } else {
                         el.markdown.textContent = initData.markdown || '';
                     }
@@ -555,6 +561,103 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
                         paused,
                     });
                 } catch {}
+            }
+
+            // Utilities for per-code-block badge decoration
+            function escapeHtml(s) {
+                return (s || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+            function getCopySvg() {
+                // VS Code-like copy icon (same as header copy)
+                return '<svg class="copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">\
+                        <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1z" fill="currentColor"/>\
+                        <path d="M20 5H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h12v14z" fill="currentColor"/>\
+                    </svg>';
+            }
+            function extractLanguage(codeEl, preEl) {
+                const tryMatch = (cls) => {
+                    const m = /(language|lang)-([\w#+.-]+)/i.exec(cls);
+                    return m ? m[2] : '';
+                };
+                let lang = '';
+                const codeCls = (codeEl.className || '').split(/\s+/);
+                for (const c of codeCls) { lang = tryMatch(c); if (lang) break; }
+                if (!lang) {
+                    const preCls = (preEl.className || '').split(/\s+/);
+                    for (const c of preCls) { lang = tryMatch(c); if (lang) break; }
+                }
+                return lang;
+            }
+            function collectFenceLangsWithMarked(md) {
+                try {
+                    if (!window.marked || typeof window.marked.lexer !== 'function') return null;
+                    const tokens = window.marked.lexer(String(md || ''));
+                    /** @type {string[]} */
+                    const langs = [];
+                    for (const t of tokens) {
+                        if (t && typeof t === 'object' && t.type === 'code') {
+                            const lang = String(t.lang || '').trim();
+                            // Keep empty strings to preserve positions; we'll skip 'mermaid' later
+                            langs.push(lang);
+                        }
+                    }
+                    return langs;
+                } catch { return null; }
+            }
+
+            function decorateCodeBlocks(langs) {
+                let ptr = 0;
+                const nextLang = () => {
+                    if (!Array.isArray(langs)) return undefined;
+                    while (ptr < langs.length) {
+                        const l = (langs[ptr++] || '').trim();
+                        if (l.toLowerCase() === 'mermaid') continue; // skip consumed mermaid blocks
+                        return l; // may be empty string when not specified
+                    }
+                    return undefined;
+                };
+                const pres = el.markdown.querySelectorAll('pre');
+                pres.forEach((pre) => {
+                    if (pre.querySelector('.code-badge')) return; // already decorated
+                    const code = pre.querySelector('code');
+                    if (!code) return;
+                    // Skip mermaid (converted earlier)
+                    if (code.classList.contains('language-mermaid')) return;
+                    let lang = extractLanguage(code, pre);
+                    if (!lang) {
+                        const mapped = nextLang();
+                        if (typeof mapped === 'string') lang = mapped;
+                    }
+                    const badge = document.createElement('button');
+                    badge.type = 'button';
+                    badge.className = 'code-badge';
+                    badge.setAttribute('aria-label', 'Copy code');
+                    const langUpper = lang ? String(lang).toUpperCase() : '';
+                    badge.title = lang ? (langUpper + ' — Click to copy') : 'Copy';
+                    if (lang) {
+                        badge.innerHTML = '<span class="code-badge__lang">' + escapeHtml(langUpper) + '</span>' + getCopySvg();
+                    } else {
+                        badge.innerHTML = getCopySvg();
+                    }
+                    badge.addEventListener('click', () => {
+                        const text = code.textContent || '';
+                        try {
+                            vscode.postMessage({ type: 'copy', text });
+                        } catch {
+                            // ignore
+                        }
+                        badge.classList.add('active');
+                        setTimeout(() => badge.classList.remove('active'), 250);
+                    });
+                    // Ensure the container can position the badge
+                    pre.style.position = pre.style.position || 'relative';
+                    pre.appendChild(badge);
+                });
             }
 
         </script>

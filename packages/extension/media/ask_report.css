@@ -172,6 +172,7 @@ button:focus-visible, textarea:focus-visible, input[type="radio"]:focus-visible 
   border-radius: 6px;
   overflow: auto;
   border: 1px solid var(--vscode-editorWidget-border);
+  position: relative; /* for top-right badge positioning */
 }
 
 /* Ensure highlight.js block inherits container background */
@@ -213,6 +214,30 @@ body.vscode-high-contrast .hljs-string,
 body.vscode-high-contrast .hljs-number,
 body.vscode-high-contrast .hljs-variable,
 body.vscode-high-contrast .hljs-title { font-weight: 600; }
+
+/* Code block badge (language label + copy icon) */
+.code-badge {
+  position: absolute;
+  top: 4.5px;
+  right: 4.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px;
+  padding: 1.5px 6px;
+  height: 16.5px;
+  border-radius: 9px;
+  border: 1px solid var(--vscode-editorWidget-border);
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  opacity: 0.92;
+  transition: background 0.12s ease, opacity 0.12s ease, transform 0.06s ease;
+}
+.code-badge:hover { opacity: 1; }
+.code-badge:active { transform: translateY(1px); }
+.code-badge .copy-icon { display: block; width: 10.5px; height: 10.5px; }
+.code-badge__lang { font-size: 8.25px; opacity: 0.85; text-transform: uppercase; }
+.code-badge.active { outline: 1px solid var(--vscode-focusBorder); }
 
 /* Tables */
 .markdown table { border-collapse: collapse; width: 100%; margin: 0.75em 0; font-variant-numeric: tabular-nums; }

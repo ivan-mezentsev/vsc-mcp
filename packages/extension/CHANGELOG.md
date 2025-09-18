@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4 - 2025-09-18
+
+- feat(ask_report): add code block badge for language label and copy action
+
 ## 0.5.3 - 2025-09-18
 
 - feat(status-bar): enhance tooltip with discovery snapshot details
