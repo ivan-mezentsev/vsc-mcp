@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5 - 2025-10-14
+
+- fix(ask_report): enable context retention when webview is hidden (save scroll position)
+
 ## 0.5.4 - 2025-09-18
 
 - feat(ask_report): add code block badge for language label and copy action
