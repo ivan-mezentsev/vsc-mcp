@@ -37,7 +37,7 @@ export async function askReport(opts: AskReportOptions): Promise<AskUserResult> 
         { viewColumn: vscode.ViewColumn.Active, preserveFocus: false },
         {
             enableScripts: true,
-            retainContextWhenHidden: false,
+            retainContextWhenHidden: true,
             localResourceRoots: [mediaRoot],
         },
     )
